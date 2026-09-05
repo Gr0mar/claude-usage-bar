@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from AppKit import (
     NSApplication,
+    NSBundle,
     NSImageLeft,
     NSMenu,
     NSMenuItem,
@@ -39,7 +40,16 @@ METRICS = [
 
 
 def _defaults() -> NSUserDefaults:
-    return NSUserDefaults.alloc().initWithSuiteName_(DEFAULTS_SUITE)
+    """Preferences for this app, however it was launched.
+
+    Running from a checkout the process belongs to the Python framework, so an explicit
+    suite is needed; running from the built bundle the suite *is* the app's own domain,
+    and asking for it by name returns nil. Both end up in the same place.
+    """
+    if NSBundle.mainBundle().bundleIdentifier() == DEFAULTS_SUITE:
+        return NSUserDefaults.standardUserDefaults()
+    return (NSUserDefaults.alloc().initWithSuiteName_(DEFAULTS_SUITE)
+            or NSUserDefaults.standardUserDefaults())
 
 
 class StatusItemController(NSObject):
