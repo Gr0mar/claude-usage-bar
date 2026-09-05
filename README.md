@@ -128,11 +128,20 @@ rotation, or a full rescan cannot inflate the totals.
 
 ## Projecting the cap
 
-The API reports how much of a window is used, not how fast. The app measures the slope
-itself - successive readings of the same window give percent-per-hour - and turns that
-into an arrival time at 100%. It only shows one when the readings span at least eight
-minutes, the window is actually moving, and the burn rate would empty it *before* the
-window resets; otherwise there is nothing to warn about and the line stays hidden.
+The reset time comes from the API - it is a fact, not a guess. The *arrival* time is
+the guess: the API says how much of a window is used, never how fast, so the app
+measures the slope itself from successive readings of the same window.
+
+The span is measured to the present moment, not to the last reading, which is what
+makes an idle machine stop predicting. A window only reports a new percentage when it
+moves, so a burst of work followed by an hour of nothing would otherwise keep the last
+steep rate on screen forever; measured against the clock, that same burst dilutes from
+30%/h to 10%/h over the following hour and eventually falls under the floor, taking the
+prediction with it.
+
+A line appears only when the readings span at least eight minutes, the window is
+actually moving, and the rate would empty it *before* it resets - otherwise there is
+nothing to warn about.
 
 ## Performance
 

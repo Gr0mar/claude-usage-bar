@@ -84,3 +84,35 @@ class ExhaustionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class IdleTests(unittest.TestCase):
+    """A window that stops moving must stop predicting."""
+
+    def test_the_rate_dilutes_while_the_window_sits_idle(self):
+        tracker = WindowTracker()
+        feed(tracker, [(0, 10), (30, 25)])
+
+        at_the_end_of_the_burst = tracker.rate_per_hour(NOW + timedelta(minutes=30))
+        an_hour_later = tracker.rate_per_hour(NOW + timedelta(minutes=90))
+
+        self.assertAlmostEqual(at_the_end_of_the_burst, 30.0, places=3)
+        self.assertAlmostEqual(an_hour_later, 10.0, places=3, msg="15 points over 90 minutes")
+
+    def test_the_prediction_disappears_once_the_rate_falls_below_the_floor(self):
+        tracker = WindowTracker()
+        feed(tracker, [(0, 10), (30, 25)])
+        self.assertIsNotNone(tracker.exhausted_at(25, RESET, NOW + timedelta(minutes=30)))
+
+        # Long enough idle that 15 points spread over the span is under 1%/h.
+        idle = NOW + timedelta(hours=16)
+        self.assertIsNone(tracker.rate_per_hour(idle))
+        self.assertIsNone(tracker.exhausted_at(25, RESET + timedelta(days=1), idle))
+
+    def test_a_burst_after_idling_measures_the_new_pace(self):
+        tracker = WindowTracker()
+        feed(tracker, [(0, 10), (120, 12), (150, 40)])
+        # From the first surviving reading inside the two-hour memory to now.
+        rate = tracker.rate_per_hour(NOW + timedelta(minutes=150))
+        self.assertIsNotNone(rate)
+        self.assertGreater(rate, 30.0)

@@ -66,13 +66,21 @@ class WindowTracker:
         del self._samples[:-MAX_SAMPLES]
 
     def rate_per_hour(self, now: datetime) -> Optional[float]:
-        """Percent consumed per hour, or None when there is not enough to say."""
+        """Percent consumed per hour, or None when there is not enough to say.
+
+        The span runs to *now*, not to the last reading. A window only reports a new
+        percentage when it moves, so measuring between readings would freeze the rate
+        at whatever it was when work stopped - and the app would keep predicting an
+        exhaustion time through an idle evening. Measuring to now lets idle time dilute
+        the rate until it falls below the floor and the prediction disappears on its own.
+        """
         usable = [sample for sample in self._samples if now - sample.at <= MAX_AGE]
         if len(usable) < 2:
             return None
 
-        first, last = usable[0], usable[-1]
-        span = last.at - first.at
+        first = usable[0]
+        last = usable[-1]
+        span = max(now, last.at) - first.at
         if span < MIN_SPAN:
             return None
 
