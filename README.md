@@ -1,5 +1,9 @@
 # Claude Usage Bar
 
+[![tests](https://github.com/Gr0mar/claude-usage-bar/actions/workflows/tests.yml/badge.svg)](https://github.com/Gr0mar/claude-usage-bar/actions/workflows/tests.yml)
+[![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+![macOS 13+](https://img.shields.io/badge/macOS-13%2B-lightgrey)
+
 A macOS menu bar tracker for Claude Code: how much of your subscription window is left,
 and what your usage would cost at API list prices. Click the spark for the full report.
 

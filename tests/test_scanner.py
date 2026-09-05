@@ -10,7 +10,7 @@ from claude_usage_bar.aggregate import summarize
 from claude_usage_bar.scanner import LogScanner, ScanState, StateCache
 
 
-def log_line(identity, tokens, timestamp="2026-09-05T10:00:00.000Z", cwd="/Users/x/clutch"):
+def log_line(identity, tokens, timestamp="2026-09-05T10:00:00.000Z", cwd="/Users/x/code/acme-web"):
     return (
         '{"type":"assistant","timestamp":"%s","requestId":"req_%s","sessionId":"s1",'
         '"cwd":"%s","message":{"id":"msg_%s","model":"claude-opus-5",'
@@ -21,7 +21,7 @@ def log_line(identity, tokens, timestamp="2026-09-05T10:00:00.000Z", cwd="/Users
 class ScannerTests(unittest.TestCase):
     def setUp(self):
         self.root = tempfile.mkdtemp(prefix="usage-bar-tests-")
-        self.project_dir = os.path.join(self.root, "-Users-x-clutch")
+        self.project_dir = os.path.join(self.root, "-Users-x-code-acme-web")
         os.makedirs(self.project_dir)
         self.log_path = os.path.join(self.project_dir, "session.jsonl")
         self.scanner = LogScanner(root=self.root)
@@ -169,7 +169,7 @@ class StateCacheTests(unittest.TestCase):
     def test_state_survives_a_round_trip_and_still_prices_the_same(self):
         log_root = tempfile.mkdtemp(prefix="usage-bar-logs-")
         self.addCleanup(shutil.rmtree, log_root, True)
-        project = os.path.join(log_root, "-Users-x-clutch")
+        project = os.path.join(log_root, "-Users-x-code-acme-web")
         os.makedirs(project)
         with open(os.path.join(project, "s.jsonl"), "w", encoding="utf-8") as handle:
             handle.write(log_line("1", 1_000_000))

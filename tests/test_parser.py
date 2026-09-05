@@ -3,7 +3,7 @@ import unittest
 from claude_usage_bar.parser import event_from_line, events_from_text
 
 
-def log_line(model="claude-opus-5", message_id="msg_1", request_id="req_1", usage="", cwd='"/Users/x/Desktop/clutch"'):
+def log_line(model="claude-opus-5", message_id="msg_1", request_id="req_1", usage="", cwd='"/Users/x/code/acme-web"'):
     return (
         '{"type":"assistant","timestamp":"2026-09-05T10:00:00.000Z","requestId":"%s",'
         '"sessionId":"sess_1","cwd":%s,'
@@ -22,7 +22,7 @@ class ParserTests(unittest.TestCase):
 
         self.assertIsNotNone(event)
         self.assertEqual(event.model, "claude-opus-5")
-        self.assertEqual(event.project, "clutch")
+        self.assertEqual(event.project, "acme-web")
         self.assertEqual(event.session_id, "sess_1")
         self.assertEqual(event.id, "msg_1:req_1")
         self.assertEqual(event.tokens.input, 32)

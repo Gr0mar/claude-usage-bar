@@ -84,15 +84,4 @@ if ! codesign --force --sign - "$APP" >/dev/null 2>&1; then
     echo "  (codesign unavailable - the app still runs, but macOS may re-ask for keychain access)"
 fi
 
-# The project used deals.clutch.* identifiers before it was published; clear the
-# leftovers so a stale cache or login item cannot outlive the rename.
-LEGACY_AGENT="$HOME/Library/LaunchAgents/deals.clutch.claude-usage-bar.plist"
-if [ -f "$LEGACY_AGENT" ]; then
-    launchctl bootout "gui/$(id -u)/deals.clutch.claude-usage-bar" >/dev/null 2>&1 || true
-    rm -f "$LEGACY_AGENT"
-    echo "› removed the old login item (identifiers changed; re-enable it in the menu)"
-fi
-rm -rf "$HOME/Library/Caches/deals.clutch.ClaudeUsageBar"
-defaults delete deals.clutch.ClaudeUsageBar >/dev/null 2>&1 || true
-
 echo "› installed. start it with:  open -a ClaudeUsageBar"

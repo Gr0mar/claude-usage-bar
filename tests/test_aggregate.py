@@ -13,7 +13,7 @@ MILLION_INPUT = TokenCounts(input=1_000_000)
 NOW = datetime(2026, 9, 5, 12, 0, tzinfo=timezone.utc)
 
 
-def sample(days_ago=0, model="claude-opus-5", project="clutch", session="s1", tokens=MILLION_INPUT,
+def sample(days_ago=0, model="claude-opus-5", project="acme-web", session="s1", tokens=MILLION_INPUT,
            identity=None, at=None):
     moment = at or (NOW - timedelta(days=days_ago))
     return UsageEvent(
@@ -38,8 +38,8 @@ class SummaryTests(unittest.TestCase):
 
     def test_project_cost_is_prorated_by_tokens(self):
         aggregate = UsageAggregate()
-        aggregate.add(sample(project="clutch"))
-        aggregate.add(sample(project="marb"))
+        aggregate.add(sample(project="acme-web"))
+        aggregate.add(sample(project="payments-api"))
 
         summary = summarize(aggregate, 1, NOW)
         self.assertEqual(len(summary.by_project), 2)
@@ -91,7 +91,7 @@ class LiveTests(unittest.TestCase):
         session = live.current_session(events, self.now)
 
         self.assertIsNotNone(session)
-        self.assertEqual(session.project, "clutch")
+        self.assertEqual(session.project, "acme-web")
         self.assertEqual(session.tokens.input, 2_000_000)
         self.assertAlmostEqual(session.cost, 10, places=3)
         self.assertAlmostEqual(session.duration.total_seconds(), 60, places=0)
