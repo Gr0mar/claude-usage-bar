@@ -20,10 +20,16 @@ BRAND_BLUE = 0x57 / 255.0
 def brand_color() -> NSColor:
     return NSColor.colorWithSRGBRed_green_blue_alpha_(BRAND_RED, BRAND_GREEN, BRAND_BLUE, 1.0)
 
-RAY_COUNT = 11
-#: Ray width at the centre and at the tip, as fractions of the radius.
+#: Relative ray lengths, going clockwise from twelve o'clock. The uneven rhythm is
+#: what makes the mark read as a spark rather than a snowflake.
+RAY_LENGTHS = (1.0, 0.78, 0.95, 0.72, 1.0, 0.80, 0.92, 0.70, 0.97, 0.75, 0.88)
+RAY_COUNT = len(RAY_LENGTHS)
+#: Ray half-width at the centre and at the tip, as fractions of the radius. The tips are
+#: cut flat rather than rounded, which is what gives the mark its faceted look.
 BASE_RATIO = 0.12
-TIP_RATIO = 0.07
+TIP_RATIO = 0.095
+#: The solid core the rays grow out of.
+CORE_RATIO = 0.145
 
 
 def draw_spark(center_x: float, center_y: float, radius: float) -> None:
@@ -32,37 +38,31 @@ def draw_spark(center_x: float, center_y: float, radius: float) -> None:
     Every ray goes into one path filled once with the non-zero rule: filled separately,
     their overlaps at the centre leave anti-aliasing seams that read as creases.
     """
+    path = NSBezierPath.bezierPath()
+    path.setWindingRule_(NSWindingRuleNonZero)
+
+    core = radius * CORE_RATIO
+    path.appendBezierPathWithOvalInRect_(
+        NSMakeRect(center_x - core, center_y - core, core * 2, core * 2)
+    )
+
     base_width = radius * BASE_RATIO
     tip_width = radius * TIP_RATIO
 
-    path = NSBezierPath.bezierPath()
-    path.setWindingRule_(NSWindingRuleNonZero)
-    # A small disc where the rays converge, so the centre reads as solid.
-    path.appendBezierPathWithOvalInRect_(
-        NSMakeRect(center_x - base_width, center_y - base_width, base_width * 2, base_width * 2)
-    )
-
-    for index in range(RAY_COUNT):
-        angle = (index / RAY_COUNT) * 2 * math.pi - math.pi / 2
+    for index, length in enumerate(RAY_LENGTHS):
+        angle = (index / RAY_COUNT) * 2 * math.pi + math.pi / 2
         along_x, along_y = math.cos(angle), math.sin(angle)
         across_x, across_y = -along_y, along_x
 
-        tip_x = center_x + along_x * (radius - tip_width)
-        tip_y = center_y + along_y * (radius - tip_width)
+        tip_x = center_x + along_x * radius * length
+        tip_y = center_y + along_y * radius * length
 
+        # A quadrilateral: wide at the core, narrower at the tip, cut off square.
         path.moveToPoint_(
             NSMakePoint(center_x + across_x * base_width, center_y + across_y * base_width)
         )
-        path.lineToPoint_(
-            NSMakePoint(tip_x + across_x * tip_width, tip_y + across_y * tip_width)
-        )
-        path.appendBezierPathWithArcWithCenter_radius_startAngle_endAngle_clockwise_(
-            NSMakePoint(tip_x, tip_y),
-            tip_width,
-            math.degrees(math.atan2(across_y, across_x)),
-            math.degrees(math.atan2(-across_y, -across_x)),
-            True,
-        )
+        path.lineToPoint_(NSMakePoint(tip_x + across_x * tip_width, tip_y + across_y * tip_width))
+        path.lineToPoint_(NSMakePoint(tip_x - across_x * tip_width, tip_y - across_y * tip_width))
         path.lineToPoint_(
             NSMakePoint(center_x - across_x * base_width, center_y - across_y * base_width)
         )

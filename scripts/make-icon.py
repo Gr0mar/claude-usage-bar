@@ -34,10 +34,11 @@ from claude_usage_bar.ui.mark import draw_spark  # noqa: E402
 INSET_RATIO = 0.086
 CORNER_RATIO = 0.225
 #: The spark's diameter, as a fraction of the artwork square.
-SPARK_RATIO = 0.62
+SPARK_RATIO = 0.70
 
-TOP = (0xE8 / 255.0, 0x8B / 255.0, 0x6A / 255.0)
-BOTTOM = (0xC2 / 255.0, 0x5E / 255.0, 0x3F / 255.0)
+TOP = (217 / 255.0, 118 / 255.0, 86 / 255.0)
+BOTTOM = (219 / 255.0, 105 / 255.0, 68 / 255.0)
+MARK = (250 / 255.0, 243 / 255.0, 237 / 255.0)
 
 SIZES = [16, 32, 64, 128, 256, 512, 1024]
 #: (iconset filename, pixel size)
@@ -82,7 +83,7 @@ def render(size: int) -> bytes:
     ).drawInBezierPath_angle_(squircle, -90.0)
 
     NSShadow.alloc().init().set()
-    NSColor.whiteColor().set()
+    NSColor.colorWithSRGBRed_green_blue_alpha_(*MARK, 1.0).set()
     centre = size / 2.0
     draw_spark(centre, centre, artwork.size.width * SPARK_RATIO / 2.0)
 
