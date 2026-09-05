@@ -149,6 +149,7 @@ PRs welcome; run the tests before opening one.
 
 MIT — see [LICENSE](LICENSE).
 
-Not affiliated with Anthropic. "Claude" and the Claude mark belong to Anthropic; the
-icon here is drawn in their style so the app reads as a companion to Claude Code, and
-is used for identification only.
+Not affiliated with Anthropic. "Claude" and the Claude mark are Anthropic's; the mark
+in `claude_usage_bar/assets/claude-mark.svg` comes from
+[simple-icons](https://github.com/simple-icons/simple-icons) (CC0 icon set, trademarks
+remain their owners') and is used here to identify what the app reports on.
