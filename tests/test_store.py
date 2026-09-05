@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from claude_usage_bar.limits import LimitWindow, LimitsSnapshot, SOURCE_API
 from claude_usage_bar.scanner import ScanState
 from claude_usage_bar.store import (
+    CACHE_INTERVAL,
     LIMITS_INTERVAL,
     LIMITS_MAX_INTERVAL,
     LIMITS_MIN_INTERVAL,
@@ -16,8 +17,9 @@ from claude_usage_bar.store import (
 class StubScanner:
     root = "/nonexistent"
 
-    def __init__(self, raises=False):
+    def __init__(self, raises=False, changes=False):
         self.raises = raises
+        self.changes = changes
         self.scans = 0
         self.size = 0
 
@@ -28,7 +30,10 @@ class StubScanner:
         self.scans += 1
         if self.raises:
             raise RuntimeError("bad log")
-        return False
+        # A changing scanner also moves the fingerprint, as a real one would.
+        if self.changes:
+            self.size += 1
+        return self.changes
 
 
 class StubCache:
@@ -63,84 +68,101 @@ def filled():
     return LimitsSnapshot(LimitWindow(21.0), LimitWindow(4.0), SOURCE_API, datetime.now(timezone.utc))
 
 
-def build(provider=None, scanner=None, cache=None):
+class FakeClock:
+    """A monotonic clock the test drives, so the polling schedule is observable."""
+
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
+
+
+def build(provider=None, scanner=None, cache=None, clock=None):
     return UsageStore(
         scanner=scanner or StubScanner(),
         cache=cache or StubCache(),
         limits_provider=provider or StubProvider(),
+        clock=clock or FakeClock(),
     )
 
 
 class LimitsScheduleTests(unittest.TestCase):
     def test_a_successful_fetch_keeps_the_normal_interval(self):
         store = build(StubProvider([filled()]))
-        store._fetch_limits_if_due()
+        store.refresh_once()
         self.assertEqual(store._limits_interval, LIMITS_INTERVAL)
-        store._publish()
         self.assertEqual(store.snapshot.limits.five_hour.used_percent, 21.0)
 
     def test_after_a_failure_the_endpoint_is_not_hit_again_until_the_interval_passes(self):
+        clock = FakeClock()
         provider = StubProvider([LimitsSnapshot()])
-        store = build(provider)
-        store._fetch_limits_if_due()
+        store = build(provider, clock=clock)
+        store.refresh_once()
         self.assertEqual(provider.calls, 1)
 
-        # Half of the (already doubled) interval: still too soon.
-        store._limits_checked_at -= store._limits_interval / 2
-        store._fetch_limits_if_due()
-        self.assertEqual(provider.calls, 1)
+        clock.advance(LIMITS_INTERVAL)  # the failure doubled the interval
+        store.refresh_once()
+        self.assertEqual(provider.calls, 1, "still inside the backed-off interval")
 
-        store._limits_checked_at -= store._limits_interval
-        store._fetch_limits_if_due()
+        clock.advance(LIMITS_INTERVAL + 1)
+        store.refresh_once()
         self.assertEqual(provider.calls, 2)
 
     def test_repeated_failures_back_off_and_cap(self):
-        store = build(StubProvider())
-        store._fetch_limits_if_due()
+        clock = FakeClock()
+        store = build(StubProvider(), clock=clock)
         for _ in range(10):
-            store._limits_checked_at -= LIMITS_MAX_INTERVAL
-            store._fetch_limits_if_due()
+            store.refresh_once()
+            clock.advance(LIMITS_MAX_INTERVAL)
         self.assertEqual(store._limits_interval, LIMITS_MAX_INTERVAL)
 
     def test_backoff_resets_once_the_endpoint_answers_again(self):
-        store = build(StubProvider([LimitsSnapshot(), filled()]))
-        store._fetch_limits_if_due()
+        clock = FakeClock()
+        store = build(StubProvider([LimitsSnapshot(), filled()]), clock=clock)
+        store.refresh_once()
         self.assertGreater(store._limits_interval, LIMITS_INTERVAL)
 
-        store._limits_checked_at -= LIMITS_MAX_INTERVAL
-        store._fetch_limits_if_due()
+        clock.advance(LIMITS_MAX_INTERVAL)
+        store.refresh_once()
         self.assertEqual(store._limits_interval, LIMITS_INTERVAL)
 
     def test_the_last_good_reading_survives_a_failed_poll(self):
-        store = build(StubProvider([filled(), LimitsSnapshot()]))
-        store._fetch_limits_if_due()
-        store._limits_checked_at -= LIMITS_MAX_INTERVAL
-        store._fetch_limits_if_due()
-        store._publish()
+        clock = FakeClock()
+        store = build(StubProvider([filled(), LimitsSnapshot()]), clock=clock)
+        store.refresh_once()
+        clock.advance(LIMITS_MAX_INTERVAL)
+        store.refresh_once()
         self.assertTrue(store.snapshot.limits.has_data)
         self.assertEqual(store.snapshot.limits.five_hour.used_percent, 21.0)
 
     def test_refresh_now_forces_a_fetch_but_respects_the_floor(self):
+        clock = FakeClock()
         provider = StubProvider([filled(), filled()])
-        store = build(provider)
-        store._fetch_limits_if_due()
+        store = build(provider, clock=clock)
+        store.refresh_once()
 
         store.refresh_now(include_limits=True)
-        store._fetch_limits_if_due()
+        clock.advance(LIMITS_MIN_INTERVAL / 2)
+        store.refresh_once()
         self.assertEqual(provider.calls, 1, "the one-minute floor still applies")
 
-        store._limits_checked_at -= LIMITS_MIN_INTERVAL
-        store._fetch_limits_if_due()
+        clock.advance(LIMITS_MIN_INTERVAL)
+        store.refresh_once()
         self.assertEqual(provider.calls, 2)
 
     def test_opening_the_menu_does_not_force_a_quota_fetch(self):
+        clock = FakeClock()
         provider = StubProvider([filled(), filled()])
-        store = build(provider)
-        store._fetch_limits_if_due()
+        store = build(provider, clock=clock)
+        store.refresh_once()
 
         store.refresh_now()
-        store._limits_checked_at -= LIMITS_MIN_INTERVAL
-        store._fetch_limits_if_due()
+        clock.advance(LIMITS_MIN_INTERVAL * 2)
+        store.refresh_once()
         self.assertEqual(provider.calls, 1, "only the scan is forced, not the endpoint")
 
 
@@ -159,8 +181,7 @@ class SnapshotTests(unittest.TestCase):
 
     def test_a_stale_quota_reading_is_marked_stale(self):
         store = build(StubProvider([filled()]))
-        store._fetch_limits_if_due()
-        store._publish()
+        store.refresh_once()
         self.assertFalse(store.snapshot.limits_are_stale())
 
         aged = LimitsSnapshot(
@@ -170,6 +191,46 @@ class SnapshotTests(unittest.TestCase):
         store._limits = aged
         store._publish()
         self.assertTrue(store.snapshot.limits_are_stale())
+
+
+class CacheWriteTests(unittest.TestCase):
+    """The cache is megabytes; a busy session must not rewrite it every tick."""
+
+    def test_the_cache_is_written_at_most_once_an_interval(self):
+        clock = FakeClock()
+        cache = StubCache()
+        store = build(scanner=StubScanner(changes=True), cache=cache, clock=clock)
+
+        store.refresh_once()
+        self.assertEqual(cache.saves, 1)
+
+        clock.advance(CACHE_INTERVAL / 2)
+        store.refresh_once()
+        self.assertEqual(cache.saves, 1, "still inside the write interval")
+
+        clock.advance(CACHE_INTERVAL)
+        store.refresh_once()
+        self.assertEqual(cache.saves, 2)
+
+    def test_an_unchanged_scan_writes_nothing(self):
+        cache = StubCache()
+        store = build(scanner=StubScanner(changes=False), cache=cache)
+        store.refresh_once()
+        store.refresh_once()
+        self.assertEqual(cache.saves, 0)
+
+    def test_quitting_flushes_a_pending_write(self):
+        clock = FakeClock()
+        cache = StubCache()
+        store = build(scanner=StubScanner(changes=True), cache=cache, clock=clock)
+        store.refresh_once()
+
+        clock.advance(1)
+        store.refresh_once()
+        self.assertEqual(cache.saves, 1, "throttled")
+
+        store.stop()
+        self.assertEqual(cache.saves, 2, "the pending state is flushed on quit")
 
 
 class LoopTests(unittest.TestCase):

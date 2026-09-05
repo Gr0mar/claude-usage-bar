@@ -32,7 +32,7 @@ def _rates(input_price: float, output_price: float, cache_read: Optional[float] 
     )
 
 
-# Longest matching prefix wins, so claude-opus-4-8 never falls into claude-opus-4.
+# Longest matching prefix wins, so claude-fable-5-1 never falls into claude-fable-5.
 TABLE = {
     "claude-fable-5-1": _rates(10, 50, cache_read=0.25),
     "claude-mythos-5-1": _rates(10, 50, cache_read=0.25),

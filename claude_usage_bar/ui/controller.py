@@ -16,6 +16,7 @@ from Foundation import NSObject
 from PyObjCTools import AppHelper
 
 from .. import formatting as fmt
+from ..identity import BUNDLE_ID
 from ..store import UsageStore
 from . import login_item
 from .mark import menu_bar_image
@@ -25,7 +26,7 @@ METRIC_KEY = "menuBarMetric"
 COLORED_ICON_KEY = "coloredMenuBarIcon"
 #: Preferences live in an explicit suite: the interpreter, not the bundle, owns the
 #: default domain, so the app would otherwise forget settings between launch methods.
-DEFAULTS_SUITE = "deals.clutch.ClaudeUsageBar"
+DEFAULTS_SUITE = BUNDLE_ID
 METRICS = [
     ("five_hour", "5h quota"),
     ("today", "Today's cost"),

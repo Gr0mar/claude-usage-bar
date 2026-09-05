@@ -46,6 +46,9 @@ LIMITS_MIN_INTERVAL = 60.0
 LIMITS_STALE_AFTER = LIMITS_INTERVAL
 
 SPARKLINE_DAYS = 14
+#: The cache is a few megabytes; during a busy session the logs change every tick, so
+#: it is written at most this often rather than on every pass.
+CACHE_INTERVAL = 60.0
 
 
 @dataclass(frozen=True)
@@ -78,10 +81,13 @@ class UsageStore:
         scanner: Optional[LogScanner] = None,
         cache: Optional[StateCache] = None,
         limits_provider=None,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._scanner = scanner or LogScanner()
         self._cache = cache or StateCache()
         self._limits_provider = limits_provider or ChainedLimitsProvider.standard()
+        #: Injectable so the polling schedule can be tested without waiting for it.
+        self._clock = clock
 
         self._state: ScanState = self._cache.load() or ScanState()
         self._fingerprint: Optional[int] = None
@@ -100,6 +106,8 @@ class UsageStore:
         # zero in a fresh process, so a 0.0 sentinel would delay the first read instead.
         self._limits_checked_at: Optional[float] = None
         self._limits_forced = False
+        self._saved_at: Optional[float] = None
+        self._unsaved = False
         self._scanning = False
         self._error: Optional[str] = None
 
@@ -122,6 +130,8 @@ class UsageStore:
         if thread is not None:
             # Let an in-flight cache write finish rather than leaving a .tmp behind.
             thread.join(timeout=2.0)
+        # Quitting is the one moment worth paying the write unconditionally.
+        self._save_if_due(force=True)
 
     def refresh_now(self, include_limits: bool = False) -> None:
         """Asks the loop for a scan on its next tick, and optionally a quota re-fetch."""
@@ -185,18 +195,28 @@ class UsageStore:
         changed = self._scanner.scan(self._state)
         self._fingerprint = fingerprint
         self._scanning = False
-        if changed:
-            self._cache.save(self._state)
+        self._unsaved = self._unsaved or changed
+        self._save_if_due()
+
+    def _save_if_due(self, force: bool = False) -> None:
+        if not self._unsaved:
+            return
+        elapsed = None if self._saved_at is None else self._clock() - self._saved_at
+        if not force and elapsed is not None and elapsed < CACHE_INTERVAL:
+            return
+        self._cache.save(self._state)
+        self._saved_at = self._clock()
+        self._unsaved = False
 
     def _fetch_limits_if_due(self) -> None:
         never_fetched = self._limits_checked_at is None
-        elapsed = 0.0 if never_fetched else time.monotonic() - self._limits_checked_at
+        elapsed = 0.0 if never_fetched else self._clock() - self._limits_checked_at
         forced = self._limits_forced and elapsed >= LIMITS_MIN_INTERVAL
         if not never_fetched and not forced and elapsed < self._limits_interval:
             return
 
         self._limits_forced = False
-        self._limits_checked_at = time.monotonic()
+        self._limits_checked_at = self._clock()
         if self._fetch_limits():
             self._limits_interval = LIMITS_INTERVAL
         else:

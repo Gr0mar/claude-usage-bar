@@ -6,8 +6,10 @@ import os
 import plistlib
 import subprocess
 
-LABEL = "deals.clutch.claude-usage-bar"
-PLIST_PATH = os.path.expanduser("~/Library/LaunchAgents/{}.plist".format(LABEL))
+from ..identity import APP_NAME, LAUNCH_AGENT_LABEL, LAUNCH_AGENT_PATH
+
+LABEL = LAUNCH_AGENT_LABEL
+PLIST_PATH = LAUNCH_AGENT_PATH
 
 
 def is_enabled() -> bool:
@@ -25,7 +27,7 @@ def _launchctl(*arguments: str) -> bool:
 def enable(app_path: str) -> None:
     """Registers the given .app (or executable) to start at login."""
     program = (
-        [os.path.join(app_path, "Contents/MacOS/ClaudeUsageBar")]
+        [os.path.join(app_path, "Contents/MacOS", APP_NAME)]
         if app_path.endswith(".app")
         else [app_path]
     )

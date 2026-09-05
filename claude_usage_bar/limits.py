@@ -123,14 +123,14 @@ def decode_windows(payload: Any) -> Tuple[Optional[LimitWindow], Optional[LimitW
     return found.get("five_hour"), found.get("seven_day")
 
 
-def read_access_token() -> Optional[str]:
+def read_access_token(runner=subprocess.run) -> Optional[str]:
     """Reads Claude Code's OAuth token from the login keychain.
 
     The token is used for exactly one thing: an authenticated GET to api.anthropic.com
     for this account's own quota windows. It is never written to disk or logged.
     """
     try:
-        result = subprocess.run(
+        result = runner(
             ["/usr/bin/security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-w"],
             capture_output=True,
             text=True,
@@ -169,12 +169,14 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class OAuthLimitsProvider:
-    def __init__(self, endpoint: str = USAGE_ENDPOINT, timeout: float = 8.0) -> None:
+    def __init__(self, endpoint: str = USAGE_ENDPOINT, timeout: float = 8.0,
+                 token_reader=read_access_token) -> None:
         self.endpoint = endpoint
         self.timeout = timeout
+        self.token_reader = token_reader
 
     def fetch(self) -> LimitsSnapshot:
-        token = read_access_token()
+        token = self.token_reader()
         if not token:
             return UNAVAILABLE
 

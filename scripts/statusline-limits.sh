@@ -21,32 +21,34 @@ OUT_FILE="$OUT_DIR/limits.json"
 INPUT=$(cat)
 
 mkdir -p "$OUT_DIR"
-printf '%s' "$INPUT" \
-    | /usr/bin/python3 -c '
-import json, sys
+
+# One pass: save the windows, and print the summary line unless a wrapped command
+# is going to print its own.
+SUMMARY=$(printf '%s' "$INPUT" | OUT_FILE="$OUT_FILE" /usr/bin/python3 -c '
+import json, os, sys, tempfile
+
 try:
-    payload = json.load(sys.stdin)
-    limits = payload.get("rate_limits") or {}
+    limits = json.load(sys.stdin).get("rate_limits") or {}
 except Exception:
     limits = {}
-print(json.dumps({"rate_limits": limits}))
-' > "$OUT_FILE.tmp" 2>/dev/null && mv "$OUT_FILE.tmp" "$OUT_FILE" || rm -f "$OUT_FILE.tmp"
+
+target = os.environ["OUT_FILE"]
+handle, temporary = tempfile.mkstemp(dir=os.path.dirname(target))
+with os.fdopen(handle, "w") as out:
+    json.dump({"rate_limits": limits}, out)
+os.replace(temporary, target)
+
+parts = []
+for key, label in (("five_hour", "5h"), ("seven_day", "7d")):
+    window = limits.get(key) or {}
+    if isinstance(window.get("used_percentage"), (int, float)):
+        parts.append("%s %.0f%%" % (label, window["used_percentage"]))
+print(" · ".join(parts))
+')
 
 if [ "$#" -gt 0 ] && [ -n "$1" ]; then
     printf '%s' "$INPUT" | eval "$1"
     exit $?
 fi
 
-printf '%s' "$INPUT" | /usr/bin/python3 -c '
-import json, sys
-try:
-    limits = (json.load(sys.stdin).get("rate_limits") or {})
-except Exception:
-    limits = {}
-parts = []
-for key, label in (("five_hour", "5h"), ("seven_day", "7d")):
-    window = limits.get(key)
-    if window and window.get("used_percentage") is not None:
-        parts.append("%s %.0f%%" % (label, window["used_percentage"]))
-print(" · ".join(parts))
-'
+printf '%s\n' "$SUMMARY"

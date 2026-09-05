@@ -15,6 +15,7 @@ Two properties matter here and both are load-bearing:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from dataclasses import dataclass, field
@@ -22,9 +23,15 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Set, Tuple
 
 from .aggregate import UsageAggregate, day_keys
+from .identity import CACHE_DIR
 from .parser import UsageEvent, events_from_text
 
 DEFAULT_ROOT = os.path.expanduser("~/.claude/projects")
+
+
+def event_key(event_id: str) -> str:
+    """The compact fingerprint stored for an event id."""
+    return hashlib.blake2b(event_id.encode("utf-8"), digest_size=8).hexdigest()
 #: How long raw events are kept for the live-session and burn-rate views.
 RECENT_WINDOW = timedelta(hours=24)
 #: Days of history kept in the aggregate. The UI never looks past 30.
@@ -66,7 +73,9 @@ class ScanState:
     aggregate: UsageAggregate = field(default_factory=UsageAggregate)
     #: Events from the recent window, kept raw so live-session and burn-rate stay exact.
     recent: List[UsageEvent] = field(default_factory=list)
-    #: Every event id already folded into the aggregate.
+    #: Fingerprints of every event already folded into the aggregate. Hashes rather
+    #: than ids: fifty thousand full ids cost megabytes in the cache file, and a
+    #: 64-bit digest collides at a rate far below the noise in the numbers.
     counted: Set[str] = field(default_factory=set)
 
     def to_dict(self) -> dict:
@@ -166,12 +175,12 @@ class LogScanner:
             fresh = [
                 event
                 for event in events_from_text(text, fallback_project)
-                if event.id not in state.counted
+                if event_key(event.id) not in state.counted
             ]
             if fresh:
                 state.aggregate.extend(fresh)
                 state.recent.extend(fresh)
-                state.counted.update(event.id for event in fresh)
+                state.counted.update(event_key(event.id) for event in fresh)
                 changed = True
             state.cursors[path] = FileCursor(start + consumed, stat.st_size, stat.st_mtime)
 
@@ -221,9 +230,7 @@ class LogScanner:
 class StateCache:
     """Persists the scan state so a relaunch does not re-read the whole history."""
 
-    DEFAULT_PATH = os.path.expanduser(
-        "~/Library/Caches/deals.clutch.ClaudeUsageBar/scan-state.json"
-    )
+    DEFAULT_PATH = os.path.join(CACHE_DIR, "scan-state.json")
 
     def __init__(self, path: str = DEFAULT_PATH) -> None:
         self.path = path

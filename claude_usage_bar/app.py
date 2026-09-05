@@ -10,6 +10,7 @@ import fcntl
 from AppKit import NSApplication, NSApplicationActivationPolicyAccessory
 from PyObjCTools import AppHelper
 
+from .identity import DISPLAY_NAME, SUPPORT_DIR
 from .store import UsageStore
 from .ui.controller import StatusItemController
 
@@ -24,7 +25,7 @@ def _app_path() -> str:
     return os.path.join(os.path.dirname(package), "scripts", "run.sh")
 
 
-LOCK_PATH = os.path.expanduser("~/Library/Application Support/ClaudeUsageBar/instance.lock")
+LOCK_PATH = os.path.join(SUPPORT_DIR, "instance.lock")
 
 
 def _claim_single_instance():
@@ -46,7 +47,7 @@ def _claim_single_instance():
 def main() -> None:
     lock = _claim_single_instance()
     if lock is None:
-        print("Claude Usage Bar is already running.")
+        print("{} is already running.".format(DISPLAY_NAME))
         return
 
     application = NSApplication.sharedApplication()

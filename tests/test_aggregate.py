@@ -9,11 +9,13 @@ from claude_usage_bar.parser import UsageEvent
 from claude_usage_bar.tokens import TokenCounts
 
 MILLION_INPUT = TokenCounts(input=1_000_000)
+#: A fixed instant, so a day rolling over mid-test cannot change an assertion.
+NOW = datetime(2026, 9, 5, 12, 0, tzinfo=timezone.utc)
 
 
 def sample(days_ago=0, model="claude-opus-5", project="clutch", session="s1", tokens=MILLION_INPUT,
            identity=None, at=None):
-    moment = at or (datetime.now(timezone.utc) - timedelta(days=days_ago))
+    moment = at or (NOW - timedelta(days=days_ago))
     return UsageEvent(
         id=identity or "{}-{}-{}".format(project, model, moment.timestamp()),
         timestamp=moment,
@@ -30,16 +32,16 @@ class SummaryTests(unittest.TestCase):
         for days in (0, 3, 20):
             aggregate.add(sample(days_ago=days))
 
-        self.assertAlmostEqual(summarize(aggregate, 1).cost, 5, places=3)
-        self.assertAlmostEqual(summarize(aggregate, 7).cost, 10, places=3)
-        self.assertAlmostEqual(summarize(aggregate, 30).cost, 15, places=3)
+        self.assertAlmostEqual(summarize(aggregate, 1, NOW).cost, 5, places=3)
+        self.assertAlmostEqual(summarize(aggregate, 7, NOW).cost, 10, places=3)
+        self.assertAlmostEqual(summarize(aggregate, 30, NOW).cost, 15, places=3)
 
     def test_project_cost_is_prorated_by_tokens(self):
         aggregate = UsageAggregate()
         aggregate.add(sample(project="clutch"))
         aggregate.add(sample(project="marb"))
 
-        summary = summarize(aggregate, 1)
+        summary = summarize(aggregate, 1, NOW)
         self.assertEqual(len(summary.by_project), 2)
         self.assertAlmostEqual(summary.by_project[0].cost, 5, places=3)
         self.assertAlmostEqual(sum(item.cost for item in summary.by_project), summary.cost, places=6)
@@ -48,7 +50,7 @@ class SummaryTests(unittest.TestCase):
         aggregate = UsageAggregate()
         aggregate.add(sample(model="claude-unreleased-9"))
 
-        summary = summarize(aggregate, 1)
+        summary = summarize(aggregate, 1, NOW)
         self.assertEqual(summary.cost, 0)
         self.assertEqual(summary.tokens.total, 1_000_000)
         self.assertTrue(summary.by_model[0].unpriced)
@@ -57,7 +59,7 @@ class SummaryTests(unittest.TestCase):
         aggregate = UsageAggregate()
         aggregate.add(sample(days_ago=2))
 
-        summary = summarize(aggregate, 7)
+        summary = summarize(aggregate, 7, NOW)
         self.assertEqual(len(summary.daily_costs), 7)
         self.assertEqual(summary.daily_costs[-1][1], 0)
         self.assertAlmostEqual(summary.daily_costs[4][1], 5, places=3)
@@ -78,7 +80,7 @@ class SummaryTests(unittest.TestCase):
 
 class LiveTests(unittest.TestCase):
     def setUp(self):
-        self.now = datetime.now(timezone.utc)
+        self.now = NOW
 
     def test_live_session_covers_only_the_running_session(self):
         events = [

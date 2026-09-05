@@ -10,8 +10,10 @@ from claude_usage_bar.limits import (
     ChainedLimitsProvider,
     LimitWindow,
     LimitsSnapshot,
+    OAuthLimitsProvider,
     StatuslineLimitsProvider,
     decode_windows,
+    read_access_token,
 )
 
 
@@ -118,6 +120,54 @@ class ProviderTests(unittest.TestCase):
 
     def test_the_chain_reports_unavailable_when_nothing_answers(self):
         self.assertFalse(ChainedLimitsProvider([EmptyProvider()]).fetch().has_data)
+
+
+class FakeResult:
+    def __init__(self, stdout, returncode=0):
+        self.stdout = stdout
+        self.returncode = returncode
+
+
+class TokenTests(unittest.TestCase):
+    """The keychain is not touched: a stub runner stands in for /usr/bin/security."""
+
+    @staticmethod
+    def runner_returning(payload):
+        return lambda *args, **kwargs: FakeResult(json.dumps(payload))
+
+    def test_a_live_token_is_returned(self):
+        future_ms = (datetime.now(timezone.utc) + timedelta(days=1)).timestamp() * 1000
+        runner = self.runner_returning({"claudeAiOauth": {"accessToken": "t", "expiresAt": future_ms}})
+        self.assertEqual(read_access_token(runner), "t")
+
+    def test_an_expired_token_is_not_used(self):
+        # expiresAt is milliseconds; reading it as seconds would make every token look live.
+        past_ms = (datetime.now(timezone.utc) - timedelta(hours=1)).timestamp() * 1000
+        runner = self.runner_returning({"claudeAiOauth": {"accessToken": "t", "expiresAt": past_ms}})
+        self.assertIsNone(read_access_token(runner))
+
+    def test_a_token_without_an_expiry_is_tried_anyway(self):
+        runner = self.runner_returning({"claudeAiOauth": {"accessToken": "t"}})
+        self.assertEqual(read_access_token(runner), "t")
+
+    def test_a_failed_or_empty_lookup_yields_nothing(self):
+        cases = {
+            "no keychain item": lambda *a, **k: FakeResult("", returncode=1),
+            "not json": lambda *a, **k: FakeResult("not json"),
+            "no oauth section": self.runner_returning({"mcpOAuth": {}}),
+            "security missing": self.fail_runner,
+        }
+        for label, runner in cases.items():
+            with self.subTest(label):
+                self.assertIsNone(read_access_token(runner))
+
+    @staticmethod
+    def fail_runner(*args, **kwargs):
+        raise OSError("security not found")
+
+    def test_the_provider_makes_no_request_without_a_token(self):
+        provider = OAuthLimitsProvider(token_reader=lambda: None)
+        self.assertEqual(provider.fetch().source, SOURCE_UNAVAILABLE)
 
 
 if __name__ == "__main__":

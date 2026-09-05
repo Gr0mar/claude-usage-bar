@@ -107,7 +107,7 @@ rotation, or a full rescan cannot inflate the totals.
 ## Performance
 
 The first launch parses every log once and caches the day-level rollup in
-`~/Library/Caches/deals.clutch.ClaudeUsageBar`. After that each pass reads only the bytes
+`~/Library/Caches/com.github.gr0mar.ClaudeUsageBar`. After that each pass reads only the bytes
 a log has grown by, tracked per file, and a half-written trailing line is left for the
 next pass rather than dropped. Idle cost is one `stat` per log every five seconds; the
 directory tree itself is re-walked at most once a minute.
@@ -117,9 +117,10 @@ directory tree itself is re-walked at most once a minute.
 ```bash
 rm -rf /Applications/ClaudeUsageBar.app
 rm -rf ~/Library/Application\ Support/ClaudeUsageBar
-rm -rf ~/Library/Caches/deals.clutch.ClaudeUsageBar
-launchctl bootout gui/$(id -u)/deals.clutch.claude-usage-bar 2>/dev/null
-rm -f ~/Library/LaunchAgents/deals.clutch.claude-usage-bar.plist
+rm -rf ~/Library/Caches/com.github.gr0mar.ClaudeUsageBar
+launchctl bootout gui/$(id -u)/com.github.gr0mar.ClaudeUsageBar 2>/dev/null
+rm -f ~/Library/LaunchAgents/com.github.gr0mar.ClaudeUsageBar.plist
+defaults delete com.github.gr0mar.ClaudeUsageBar 2>/dev/null
 rm -rf ~/.claude/usage-bar
 ```
 
@@ -131,6 +132,9 @@ rm -rf ~/.claude/usage-bar
 .venv/bin/python scripts/preview.py docs 7 --demo  # the README screenshot, synthetic data
 ./scripts/run.sh                                 # foreground, prints tracebacks
 ```
+
+The app's identity - bundle id, cache directory, LaunchAgent label - lives in
+`claude_usage_bar/identity.py`, and the install script reads it from there.
 
 `claude_usage_bar/` splits into pure logic (`parser`, `pricing`, `aggregate`, `scanner`,
 `live`, `limits`, `formatting`, `store`) and the AppKit layer (`ui/`). Only `ui/` imports
