@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import math
 
-from AppKit import NSBezierPath, NSColor, NSImage
-from Foundation import NSMakePoint, NSMakeSize
+from AppKit import NSBezierPath, NSColor, NSImage, NSWindingRuleNonZero
+from Foundation import NSMakePoint, NSMakeRect, NSMakeSize
 
 #: Claude's coral. Used wherever the mark is drawn in colour.
 BRAND_RED = 0xD9 / 255.0
@@ -27,9 +27,20 @@ TIP_RATIO = 0.07
 
 
 def draw_spark(center_x: float, center_y: float, radius: float) -> None:
-    """Fills the mark with the colour that is already set."""
+    """Fills the mark with the colour that is already set.
+
+    Every ray goes into one path filled once with the non-zero rule: filled separately,
+    their overlaps at the centre leave anti-aliasing seams that read as creases.
+    """
     base_width = radius * BASE_RATIO
     tip_width = radius * TIP_RATIO
+
+    path = NSBezierPath.bezierPath()
+    path.setWindingRule_(NSWindingRuleNonZero)
+    # A small disc where the rays converge, so the centre reads as solid.
+    path.appendBezierPathWithOvalInRect_(
+        NSMakeRect(center_x - base_width, center_y - base_width, base_width * 2, base_width * 2)
+    )
 
     for index in range(RAY_COUNT):
         angle = (index / RAY_COUNT) * 2 * math.pi - math.pi / 2
@@ -39,7 +50,6 @@ def draw_spark(center_x: float, center_y: float, radius: float) -> None:
         tip_x = center_x + along_x * (radius - tip_width)
         tip_y = center_y + along_y * (radius - tip_width)
 
-        path = NSBezierPath.bezierPath()
         path.moveToPoint_(
             NSMakePoint(center_x + across_x * base_width, center_y + across_y * base_width)
         )
@@ -57,7 +67,8 @@ def draw_spark(center_x: float, center_y: float, radius: float) -> None:
             NSMakePoint(center_x - across_x * base_width, center_y - across_y * base_width)
         )
         path.closePath()
-        path.fill()
+
+    path.fill()
 
 
 def menu_bar_image(side: float = 15.0, colored: bool = False) -> NSImage:

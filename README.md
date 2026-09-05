@@ -131,6 +131,7 @@ rm -rf ~/.claude/usage-bar
 .venv/bin/python scripts/preview.py /tmp 7       # renders the dropdown to PNGs
 .venv/bin/python scripts/preview.py docs 7 --demo  # the README screenshot, synthetic data
 ./scripts/run.sh                                 # foreground, prints tracebacks
+.venv/bin/python scripts/make-icon.py docs/AppIcon.icns  # rebuild the app icon
 ```
 
 The app's identity - bundle id, cache directory, LaunchAgent label - lives in

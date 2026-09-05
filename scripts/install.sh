@@ -54,6 +54,10 @@ wait
 LAUNCHER
 chmod +x "$APP/Contents/MacOS/ClaudeUsageBar"
 
+# The icon Finder, Spotlight and the login-items list show. Regenerate it with
+# scripts/make-icon.py after changing the mark.
+cp "$REPO/docs/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -63,6 +67,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleDisplayName</key><string>Claude Usage Bar</string>
     <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
     <key>CFBundleExecutable</key><string>ClaudeUsageBar</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>1.0</string>
     <key>CFBundleVersion</key><string>1.0</string>
