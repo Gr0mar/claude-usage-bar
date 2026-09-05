@@ -7,9 +7,9 @@
 A macOS menu bar tracker for Claude Code: how much of your subscription window is left,
 and what your usage would cost at API list prices. Click the spark for the full report.
 
-![the dropdown](docs/dropdown.png)
+![the dropdown](docs/dropdown.gif)
 
-*(Screenshot rendered from synthetic data — `scripts/preview.py --demo`.)*
+*(Rendered from synthetic data — `scripts/make-gif.py`. No real project names or spend.)*
 
 ## What it shows
 
@@ -42,20 +42,22 @@ pay-as-you-go".
 ## Install
 
 ```bash
-git clone https://github.com/Gr0mar/claude-usage-bar.git
-cd claude-usage-bar
-./scripts/setup.sh
+brew trust gr0mar/tap                              # third-party taps need this once
+brew install --cask gr0mar/tap/claude-usage-bar
+xattr -dr com.apple.quarantine /Applications/ClaudeUsageBar.app
 open -a ClaudeUsageBar
 ```
 
-`setup.sh` builds a virtualenv, runs the tests, and calls `install.sh`; `install.sh`
-alone rebuilds the runtime and the app bundle, which is what you run after changing the
-code.
+Or grab the zip from [Releases](https://github.com/Gr0mar/claude-usage-bar/releases),
+unzip it into `/Applications`, then right-click the app and choose **Open**.
 
-The install puts the runtime under `~/Library/Application Support/ClaudeUsageBar` and
-the bundle at `/Applications/ClaudeUsageBar.app`. That split is deliberate: an app
-launched from Finder cannot read `~/Desktop` or `~/Documents`, so a bundle pointing back
-at a checkout there would die on startup.
+That third line is the honest part: the app is **ad-hoc signed, not notarised**, so
+Gatekeeper refuses to open it silently until the quarantine flag is cleared (the
+right-click → Open dance does the same thing). Notarising needs a paid Apple Developer
+account; if this project earns one, the step disappears.
+
+The bundle carries its own copy of PyObjC and runs on the system `/usr/bin/python3` —
+1.4 MB, nothing to install, no virtualenv.
 
 **macOS will ask once for keychain access.** That is the OAuth token read described
 below. Deny it and everything still works — the app falls back to the statusline file or
@@ -63,6 +65,19 @@ to a local token count.
 
 "Launch at login" in the menu writes a LaunchAgent to `~/Library/LaunchAgents` — no
 admin rights, no installer.
+
+### From source
+
+```bash
+git clone https://github.com/Gr0mar/claude-usage-bar.git
+cd claude-usage-bar
+./scripts/setup.sh          # venv, tests, and a bundle in /Applications
+```
+
+`setup.sh` calls `install.sh`, which puts the runtime under
+`~/Library/Application Support/ClaudeUsageBar`. That split from the checkout is
+deliberate: an app launched from Finder cannot read `~/Desktop` or `~/Documents`, so a
+bundle pointing back at a checkout there would die on startup.
 
 ## Where the numbers come from
 
@@ -147,6 +162,8 @@ rm -rf ~/.claude/usage-bar
 .venv/bin/python scripts/preview.py docs 7 --demo  # the README screenshot, synthetic data
 ./scripts/run.sh                                 # foreground, prints tracebacks
 .venv/bin/python scripts/make-icon.py docs/AppIcon.icns  # rebuild the app icon
+.venv/bin/python scripts/make-gif.py docs/dropdown.gif   # rebuild the README animation
+./scripts/build-release.sh 1.0.0                 # self-contained bundle + release zip
 ```
 
 The app's identity - bundle id, cache directory, LaunchAgent label - lives in
