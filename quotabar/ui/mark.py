@@ -12,7 +12,14 @@ from __future__ import annotations
 
 import math
 
-from AppKit import NSBezierPath, NSColor, NSImage, NSLineCapStyleRound
+from AppKit import (
+    NSAffineTransform,
+    NSBezierPath,
+    NSColor,
+    NSGraphicsContext,
+    NSImage,
+    NSLineCapStyleRound,
+)
 from Foundation import NSMakePoint, NSMakeRect, NSMakeSize
 
 #: Warm amber - a meter colour, not Claude's coral.
@@ -31,6 +38,8 @@ DOT_RATIO = 0.15
 DEFAULT_FILL = 0.66
 #: How faint the unfilled part of the ring is.
 TRACK_ALPHA = 0.3
+#: The square the mark is drawn in wherever it appears beside text.
+MARK_SIDE = 15.0
 
 
 def brand_color() -> NSColor:
@@ -48,11 +57,32 @@ def _stroke_arc(center_x: float, center_y: float, ring: float, width: float,
     path.stroke()
 
 
+def _geometry(radius: float) -> tuple:
+    """Ring radius and pen sizes that keep the whole mark - needle included - inside
+    `radius`, so the silhouette is identical at every size it is drawn at."""
+    width = radius * TRACK_RATIO
+    dot = radius * DOT_RATIO
+    return width, dot, radius - max(width / 2, dot)
+
+
 def draw_mark(center_x: float, center_y: float, radius: float, color: NSColor,
               fill: float = DEFAULT_FILL) -> None:
-    """Draws the gauge: a faint full ring, the filled part in `color`, and a needle."""
-    width = radius * TRACK_RATIO
-    ring = radius - width / 2
+    """Draws the gauge: a faint full ring, the filled part in `color`, and a needle.
+
+    The dial reads the same way whatever it is drawn into. A flipped context - the
+    dropdown view is one - would otherwise mirror the arc, so the header mark and the
+    menu bar mark would open in opposite directions.
+    """
+    context = NSGraphicsContext.currentContext()
+    flipped = bool(context is not None and context.isFlipped())
+    if flipped:
+        NSGraphicsContext.saveGraphicsState()
+        mirror = NSAffineTransform.transform()
+        mirror.translateXBy_yBy_(0.0, 2 * center_y)
+        mirror.scaleXBy_yBy_(1.0, -1.0)
+        mirror.concat()
+
+    width, dot, ring = _geometry(radius)
 
     filled_to = START_DEGREES + (END_DEGREES - START_DEGREES) * min(max(fill, 0.0), 1.0)
 
@@ -63,7 +93,6 @@ def draw_mark(center_x: float, center_y: float, radius: float, color: NSColor,
     _stroke_arc(center_x, center_y, ring, width, START_DEGREES, filled_to)
 
     angle = math.radians(filled_to)
-    dot = radius * DOT_RATIO
     NSBezierPath.bezierPathWithOvalInRect_(
         NSMakeRect(
             center_x + math.cos(angle) * ring - dot,
@@ -73,13 +102,29 @@ def draw_mark(center_x: float, center_y: float, radius: float, color: NSColor,
         )
     ).fill()
 
+    if flipped:
+        NSGraphicsContext.restoreGraphicsState()
 
-def menu_bar_image(side: float = 15.0, colored: bool = False) -> NSImage:
-    """The menu bar icon: a template image by default, so macOS tints it."""
-    image = NSImage.alloc().initWithSize_(NSMakeSize(side, side))
-    image.lockFocus()
-    draw_mark(side / 2, side / 2, side / 2 - 0.5,
-              brand_color() if colored else NSColor.blackColor())
-    image.unlockFocus()
+
+def draw_mark_in_box(x: float, y: float, side: float, color: NSColor,
+                     fill: float = DEFAULT_FILL) -> None:
+    """Draws the mark to fill a square box whose lower-left corner is (x, y)."""
+    draw_mark(x + side / 2, y + side / 2, side / 2, color, fill)
+
+
+def menu_bar_image(side: float = MARK_SIDE, colored: bool = False) -> NSImage:
+    """The menu bar icon: a template image by default, so macOS tints it.
+
+    Drawn through a handler rather than into a fixed bitmap, so AppKit rasterises it at
+    the display's scale - on a Retina screen the arc is as crisp as the one the dropdown
+    draws, instead of a 15-point bitmap stretched to double size.
+    """
+    def render(rect) -> bool:
+        draw_mark_in_box(0, 0, side, brand_color() if colored else NSColor.blackColor())
+        return True
+
+    image = NSImage.imageWithSize_flipped_drawingHandler_(
+        NSMakeSize(side, side), False, render
+    )
     image.setTemplate_(not colored)
     return image

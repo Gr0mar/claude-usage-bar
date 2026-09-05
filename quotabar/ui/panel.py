@@ -34,7 +34,7 @@ from .. import formatting as fmt
 from .. import pricing
 from ..limits import SOURCE_API, SOURCE_STATUSLINE
 from ..store import RANGES, SPARKLINE_DAYS, Snapshot, UsageStore
-from .mark import brand_color, draw_mark
+from .mark import MARK_SIDE, brand_color, draw_mark
 
 WIDTH = 340.0
 PADDING = 12.0
@@ -54,6 +54,9 @@ LABEL = 11.0
 VALUE = 11.5
 CAPTION = 10.0
 MICRO = 9.5
+
+#: Space between the mark and the wordmark in the header.
+MARK_GAP = 5.0
 
 #: The column where the tokens/savings block sits beside the hero number.
 VALUE_COLUMN = 96.0
@@ -173,8 +176,8 @@ class UsagePanel(NSView):
     @objc.python_method
     def _header(self, snapshot: Snapshot, y: float, draw: bool) -> float:
         if draw:
-            draw_mark(PADDING + 8, y + 7, 8, brand_color())
-        self._text("QuotaBar", PADDING + 20, y - 1, TITLE, NSFontWeightSemibold,
+            draw_mark(PADDING + MARK_SIDE / 2, y + 7, MARK_SIDE / 2, brand_color())
+        self._text("QuotaBar", PADDING + MARK_SIDE + MARK_GAP, y - 1, TITLE, NSFontWeightSemibold,
                    NSColor.labelColor(), draw)
         self._text(self._source_label(snapshot), PADDING, y, CAPTION, NSFontWeightRegular,
                    NSColor.tertiaryLabelColor(), draw, align_right=True)
