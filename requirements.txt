@@ -1,5 +1,2 @@
 # The app needs AppKit bindings; the test suite is pure standard library.
 pyobjc-framework-Cocoa>=10,<12
-# Native notifications; without it every alert falls back to osascript, which macOS
-# attributes to Script Editor.
-pyobjc-framework-UserNotifications>=10,<12

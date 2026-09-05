@@ -22,7 +22,9 @@ and what your usage would cost at API list prices. Click the spark for the full 
 | Models | Opus / Sonnet / Haiku split, and what prompt caching saved |
 
 It also notifies you once the session window passes 80% and again at 95%, so the cap
-does not arrive mid-thought. Turn that off in the menu.
+does not arrive mid-thought. Turn that off in the menu. Those notifications go out
+through `osascript`, so macOS attributes them to Script Editor — allow its
+notifications in System Settings if they never appear.
 
 The menu bar label shows the 5h quota by default; the menu switches it to the weekly
 quota, today's cost, or the icon alone, and toggles the icon between monochrome and
