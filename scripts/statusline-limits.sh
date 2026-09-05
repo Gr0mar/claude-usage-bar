@@ -10,7 +10,7 @@
 #
 #   "statusLine": {
 #     "type": "command",
-#     "command": "/path/to/claude-usage-bar/scripts/statusline-limits.sh 'your existing command'"
+#     "command": "/path/to/quotabar/scripts/statusline-limits.sh 'your existing command'"
 #   }
 #
 # With no argument it prints a small "5h / 7d" line of its own.

@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import os
 
-BUNDLE_ID = "com.github.gr0mar.ClaudeUsageBar"
-APP_NAME = "ClaudeUsageBar"
-DISPLAY_NAME = "Claude Usage Bar"
+VERSION = "1.1.0"
+BUNDLE_ID = "com.github.gr0mar.QuotaBar"
+APP_NAME = "QuotaBar"
+DISPLAY_NAME = "QuotaBar"
 LAUNCH_AGENT_LABEL = BUNDLE_ID
 
 

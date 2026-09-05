@@ -11,4 +11,4 @@ cd "$(dirname "$0")/.."
 ./scripts/install.sh
 
 echo
-echo "done. start it with:  open -a ClaudeUsageBar"
+echo "done. start it with:  open -a QuotaBar"

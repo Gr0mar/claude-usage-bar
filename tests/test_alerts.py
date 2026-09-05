@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from claude_usage_bar.alerts import QuotaAlerts
+from quotabar.alerts import QuotaAlerts
 
 NOW = datetime(2026, 9, 5, 12, 0, tzinfo=timezone.utc)
 WINDOW = NOW + timedelta(hours=3)
@@ -35,6 +35,14 @@ class QuotaAlertTests(unittest.TestCase):
         self.alerts.check(81.0, WINDOW)
         later = WINDOW + timedelta(hours=5)
         self.assertIsNotNone(self.alerts.check(81.0, later))
+
+    def test_a_window_without_a_reset_time_rearms_when_it_drops(self):
+        # The usage payload does not always carry a reset time.
+        self.assertIsNotNone(self.alerts.check(81.0, None))
+        self.assertIsNone(self.alerts.check(85.0, None), "same window")
+
+        self.assertIsNone(self.alerts.check(3.0, None), "a fresh window, nowhere near 80")
+        self.assertIsNotNone(self.alerts.check(81.0, None), "and it can fire again")
 
     def test_a_missing_reading_is_ignored(self):
         self.assertIsNone(self.alerts.check(None, WINDOW))

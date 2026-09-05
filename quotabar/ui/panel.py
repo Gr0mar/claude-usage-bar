@@ -34,7 +34,7 @@ from .. import formatting as fmt
 from .. import pricing
 from ..limits import SOURCE_API, SOURCE_STATUSLINE
 from ..store import RANGES, SPARKLINE_DAYS, Snapshot, UsageStore
-from .mark import brand_color, draw_spark
+from .mark import brand_color, draw_mark
 
 WIDTH = 340.0
 PADDING = 12.0
@@ -173,9 +173,8 @@ class UsagePanel(NSView):
     @objc.python_method
     def _header(self, snapshot: Snapshot, y: float, draw: bool) -> float:
         if draw:
-            brand_color().set()
-            draw_spark(PADDING + 7, y + 7, 7)
-        self._text("Claude usage", PADDING + 18, y - 1, TITLE, NSFontWeightSemibold,
+            draw_mark(PADDING + 8, y + 7, 8, brand_color())
+        self._text("QuotaBar", PADDING + 20, y - 1, TITLE, NSFontWeightSemibold,
                    NSColor.labelColor(), draw)
         self._text(self._source_label(snapshot), PADDING, y, CAPTION, NSFontWeightRegular,
                    NSColor.tertiaryLabelColor(), draw, align_right=True)
@@ -286,6 +285,11 @@ class UsagePanel(NSView):
         self._text("at API list prices, not your bill", PADDING + VALUE_COLUMN, y + 28, MICRO,
                    NSFontWeightRegular, NSColor.tertiaryLabelColor(), draw)
         y += 44
+
+        if not snapshot.logs_present:
+            self._text("No sessions found in ~/.claude/projects yet.", PADDING, y - 6,
+                       CAPTION, NSFontWeightRegular, NSColor.tertiaryLabelColor(), draw)
+            return y + 12
 
         self._sparkline(y, draw, snapshot.sparkline)
         y += 30

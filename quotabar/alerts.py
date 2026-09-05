@@ -22,6 +22,9 @@ class Alert:
     title: str
     body: str
     threshold: float
+    #: Identifies the window this alert belongs to, so two windows' alerts do not
+    #: replace one another in Notification Centre.
+    window_key: str = "window"
 
 
 class QuotaAlerts:
@@ -31,6 +34,7 @@ class QuotaAlerts:
         self.thresholds = tuple(sorted(thresholds))
         self.enabled = enabled
         self._window: Optional[datetime] = None
+        self._last_percent: Optional[float] = None
         self._fired: Set[float] = set()
 
     def check(self, percent: Optional[float], resets_at: Optional[datetime],
@@ -39,9 +43,15 @@ class QuotaAlerts:
         """The alert this reading warrants, or None."""
         if percent is None:
             return None
-        if resets_at != self._window:
+
+        # A new reset time means a new window. Some payloads carry no reset time at
+        # all, so a percentage that drops counts as a new window too - otherwise the
+        # thresholds would arm exactly once for the life of the process.
+        dropped = self._last_percent is not None and percent < self._last_percent
+        if resets_at != self._window or dropped:
             self._window = resets_at
             self._fired = set()
+        self._last_percent = percent
         if not self.enabled:
             # Thresholds still arm and disarm while off, so switching notifications on
             # mid-window does not immediately fire for a threshold already passed.
@@ -60,6 +70,7 @@ class QuotaAlerts:
             title="{} limit {}".format(self.window_name, fmt.percent(percent)),
             body=self._body(exhausted_at, resets_at, now),
             threshold=threshold,
+            window_key=resets_at.isoformat() if resets_at else "unknown",
         )
 
     @staticmethod

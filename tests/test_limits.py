@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from claude_usage_bar.limits import (
+from quotabar.limits import (
     SOURCE_STATUSLINE,
     SOURCE_UNAVAILABLE,
     ChainedLimitsProvider,

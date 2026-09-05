@@ -1,4 +1,4 @@
-"""Renders the app icon: the Claude spark on a coral squircle.
+"""Renders the app icon: the gauge mark on a graphite squircle.
 
     .venv/bin/python scripts/make-icon.py [out.icns]
 
@@ -28,19 +28,19 @@ from AppKit import (  # noqa: E402
 )
 from Foundation import NSMakePoint, NSMakeRect, NSMakeSize  # noqa: E402
 
-from claude_usage_bar.ui.mark import draw_spark  # noqa: E402
+from quotabar.ui.mark import draw_mark  # noqa: E402
 
 #: Apple's icon grid leaves the artwork inset from the canvas edge.
 INSET_RATIO = 0.086
 CORNER_RATIO = 0.225
 #: The spark's diameter, as a fraction of the artwork square.
-SPARK_RATIO = 0.70
+SPARK_RATIO = 0.66
 
-TOP = (217 / 255.0, 118 / 255.0, 86 / 255.0)
-BOTTOM = (219 / 255.0, 105 / 255.0, 68 / 255.0)
-MARK = (250 / 255.0, 243 / 255.0, 237 / 255.0)
+#: A graphite tile, so the amber gauge reads as an instrument rather than a brand.
+TOP = (0x3A / 255.0, 0x3D / 255.0, 0x44 / 255.0)
+BOTTOM = (0x24 / 255.0, 0x26 / 255.0, 0x2B / 255.0)
+MARK = (0xF2 / 255.0, 0x9A / 255.0, 0x4B / 255.0)
 
-SIZES = [16, 32, 64, 128, 256, 512, 1024]
 #: (iconset filename, pixel size)
 ICONSET = [
     ("icon_16x16.png", 16),
@@ -83,9 +83,9 @@ def render(size: int) -> bytes:
     ).drawInBezierPath_angle_(squircle, -90.0)
 
     NSShadow.alloc().init().set()
-    NSColor.colorWithSRGBRed_green_blue_alpha_(*MARK, 1.0).set()
     centre = size / 2.0
-    draw_spark(centre, centre, artwork.size.width * SPARK_RATIO / 2.0)
+    draw_mark(centre, centre, artwork.size.width * SPARK_RATIO / 2.0,
+              NSColor.colorWithSRGBRed_green_blue_alpha_(*MARK, 1.0))
 
     NSGraphicsContext.restoreGraphicsState()
     return rep.representationUsingType_properties_(NSBitmapImageFileTypePNG, {})

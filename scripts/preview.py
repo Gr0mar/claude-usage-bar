@@ -28,10 +28,10 @@ from AppKit import (  # noqa: E402
 )
 from Foundation import NSMakeRect  # noqa: E402
 
-from claude_usage_bar.limits import LimitWindow, LimitsSnapshot, SOURCE_API  # noqa: E402
-from claude_usage_bar.scanner import LogScanner, StateCache  # noqa: E402
-from claude_usage_bar.store import UsageStore  # noqa: E402
-from claude_usage_bar.ui.panel import UsagePanel, WIDTH  # noqa: E402
+from quotabar.limits import LimitWindow, LimitsSnapshot, SOURCE_API  # noqa: E402
+from quotabar.scanner import LogScanner, StateCache  # noqa: E402
+from quotabar.store import UsageStore  # noqa: E402
+from quotabar.ui.panel import UsagePanel, WIDTH  # noqa: E402
 
 
 DEMO_PROJECTS = [

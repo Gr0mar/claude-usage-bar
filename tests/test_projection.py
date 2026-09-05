@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from claude_usage_bar.projection import MIN_RATE_PER_HOUR, WindowTracker
+from quotabar.projection import MIN_RATE_PER_HOUR, WindowTracker
 
 NOW = datetime(2026, 9, 5, 12, 0, tzinfo=timezone.utc)
 RESET = NOW + timedelta(hours=4)
@@ -82,9 +82,6 @@ class ExhaustionTests(unittest.TestCase):
         self.assertIsNone(WindowTracker().exhausted_at(20, RESET, NOW))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class IdleTests(unittest.TestCase):
     """A window that stops moving must stop predicting."""
@@ -97,7 +94,8 @@ class IdleTests(unittest.TestCase):
         an_hour_later = tracker.rate_per_hour(NOW + timedelta(minutes=90))
 
         self.assertAlmostEqual(at_the_end_of_the_burst, 30.0, places=3)
-        self.assertAlmostEqual(an_hour_later, 10.0, places=3, msg="15 points over 90 minutes")
+        # 15 points over 84 minutes: the span runs to now less the grace period.
+        self.assertAlmostEqual(an_hour_later, 10.714, places=3)
 
     def test_the_prediction_disappears_once_the_rate_falls_below_the_floor(self):
         tracker = WindowTracker()
@@ -114,5 +112,33 @@ class IdleTests(unittest.TestCase):
         feed(tracker, [(0, 10), (120, 12), (150, 40)])
         # From the first surviving reading inside the two-hour memory to now.
         rate = tracker.rate_per_hour(NOW + timedelta(minutes=150))
-        self.assertIsNotNone(rate)
-        self.assertGreater(rate, 30.0)
+        # 28 points between the two surviving readings, half an hour apart.
+        self.assertAlmostEqual(rate, 56.0, places=3)
+
+
+class StabilityTests(unittest.TestCase):
+    """The prediction must not move on its own between quota readings."""
+
+    def test_the_rate_holds_steady_until_a_reading_is_overdue(self):
+        tracker = WindowTracker()
+        feed(tracker, [(0, 10), (30, 25)])
+
+        at_the_reading = tracker.rate_per_hour(NOW + timedelta(minutes=30))
+        five_minutes_later = tracker.rate_per_hour(NOW + timedelta(minutes=35))
+
+        self.assertAlmostEqual(at_the_reading, 30.0, places=3)
+        self.assertAlmostEqual(five_minutes_later, 30.0, places=3)
+
+    def test_the_predicted_time_does_not_creep_between_readings(self):
+        tracker = WindowTracker()
+        feed(tracker, [(0, 10), (30, 25)])
+
+        first = tracker.exhausted_at(25, RESET, NOW + timedelta(minutes=30))
+        later = tracker.exhausted_at(25, RESET, NOW + timedelta(minutes=35))
+
+        self.assertIsNotNone(first)
+        self.assertEqual(first, later, "the same data must predict the same moment")
+
+
+if __name__ == "__main__":
+    unittest.main()

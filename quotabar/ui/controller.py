@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from AppKit import (
     NSApplication,
     NSBundle,
@@ -12,8 +14,10 @@ from AppKit import (
     NSUserDefaults,
     NSVariableStatusItemLength,
 )
+import traceback
+
 import objc
-from Foundation import NSObject
+from Foundation import NSLog, NSObject
 from PyObjCTools import AppHelper
 
 from .. import formatting as fmt
@@ -39,6 +43,9 @@ METRICS = [
 ]
 
 
+_defaults_cache = None
+
+
 def _defaults() -> NSUserDefaults:
     """Preferences for this app, however it was launched.
 
@@ -46,10 +53,14 @@ def _defaults() -> NSUserDefaults:
     suite is needed; running from the built bundle the suite *is* the app's own domain,
     and asking for it by name returns nil. Both end up in the same place.
     """
-    if NSBundle.mainBundle().bundleIdentifier() == DEFAULTS_SUITE:
-        return NSUserDefaults.standardUserDefaults()
-    return (NSUserDefaults.alloc().initWithSuiteName_(DEFAULTS_SUITE)
-            or NSUserDefaults.standardUserDefaults())
+    global _defaults_cache
+    if _defaults_cache is None:
+        if NSBundle.mainBundle().bundleIdentifier() == DEFAULTS_SUITE:
+            _defaults_cache = NSUserDefaults.standardUserDefaults()
+        else:
+            _defaults_cache = (NSUserDefaults.alloc().initWithSuiteName_(DEFAULTS_SUITE)
+                               or NSUserDefaults.standardUserDefaults())
+    return _defaults_cache
 
 
 class StatusItemController(NSObject):
@@ -200,19 +211,31 @@ class StatusItemController(NSObject):
         self._item.button().setTitle_(" " + text if text else "")
 
     def storeUpdated(self) -> None:
-        """Called on the main thread whenever the store has new numbers."""
-        self._update_label()
-        self._panel.refresh()
-        self._check_quota_alert()
+        """Called on the main thread whenever the store has new numbers.
+
+        Guarded: an exception here escapes into the AppKit run loop, where the scan
+        thread's own guard cannot help.
+        """
+        try:
+            self._update_label()
+            self._panel.refresh()
+            self._check_quota_alert()
+        except Exception:
+            NSLog("QuotaBar: refresh failed: %@", traceback.format_exc())
 
     @objc.python_method
     def _check_quota_alert(self) -> None:
         snapshot = self._store.snapshot
         window = snapshot.limits.five_hour
+        if window is None or snapshot.limits_are_stale():
+            return
+        # A window whose reset has passed is history; the reading just has not caught up.
+        now = datetime.now(timezone.utc)
+        if window.resets_at is not None and window.resets_at <= now:
+            return
+
         alert = self._alerts.check(
-            window.used_percent if window else None,
-            window.resets_at if window else None,
-            snapshot.five_hour_eta,
+            window.used_percent, window.resets_at, snapshot.five_hour_eta, now
         )
         if alert is not None:
             self._notifier.deliver(alert)

@@ -1,10 +1,10 @@
 import threading
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from claude_usage_bar.limits import LimitWindow, LimitsSnapshot, SOURCE_API
-from claude_usage_bar.scanner import ScanState
-from claude_usage_bar.store import (
+from quotabar.limits import LimitWindow, LimitsSnapshot, SOURCE_API
+from quotabar.scanner import ScanState
+from quotabar.store import (
     CACHE_INTERVAL,
     LIMITS_INTERVAL,
     LIMITS_MAX_INTERVAL,
@@ -64,8 +64,13 @@ class StubProvider:
         return self.snapshots.pop(0) if self.snapshots else LimitsSnapshot()
 
 
-def filled():
-    return LimitsSnapshot(LimitWindow(21.0), LimitWindow(4.0), SOURCE_API, datetime.now(timezone.utc))
+def filled(percent=21.0, resets_at=None, fetched_at=None):
+    return LimitsSnapshot(
+        LimitWindow(percent, resets_at),
+        LimitWindow(4.0, resets_at),
+        SOURCE_API,
+        fetched_at or datetime.now(timezone.utc),
+    )
 
 
 class FakeClock:
@@ -164,6 +169,46 @@ class LimitsScheduleTests(unittest.TestCase):
         clock.advance(LIMITS_MIN_INTERVAL * 2)
         store.refresh_once()
         self.assertEqual(provider.calls, 1, "only the scan is forced, not the endpoint")
+
+
+class ProjectionTests(unittest.TestCase):
+    """The published snapshot must carry the arrival time the panel draws."""
+
+    def test_two_readings_of_a_moving_window_produce_an_eta(self):
+        now = datetime.now(timezone.utc)
+        reset = now + timedelta(hours=4)
+        clock = FakeClock()
+        provider = StubProvider([
+            filled(percent=10.0, resets_at=reset, fetched_at=now - timedelta(minutes=30)),
+            filled(percent=40.0, resets_at=reset, fetched_at=now),
+        ])
+        store = build(provider, clock=clock)
+
+        store.refresh_once()
+        self.assertIsNone(store.snapshot.five_hour_eta, "one reading says nothing")
+
+        clock.advance(LIMITS_INTERVAL + 1)
+        store.refresh_once()
+
+        eta = store.snapshot.five_hour_eta
+        self.assertIsNotNone(eta, "60%/h against 60 points left lands an hour out")
+        self.assertLess(eta, reset)
+
+    def test_a_still_window_produces_no_eta(self):
+        now = datetime.now(timezone.utc)
+        reset = now + timedelta(hours=4)
+        clock = FakeClock()
+        provider = StubProvider([
+            filled(percent=10.0, resets_at=reset, fetched_at=now - timedelta(minutes=30)),
+            filled(percent=10.0, resets_at=reset, fetched_at=now),
+        ])
+        store = build(provider, clock=clock)
+
+        store.refresh_once()
+        clock.advance(LIMITS_INTERVAL + 1)
+        store.refresh_once()
+
+        self.assertIsNone(store.snapshot.five_hour_eta)
 
 
 class SnapshotTests(unittest.TestCase):

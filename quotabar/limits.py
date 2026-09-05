@@ -134,7 +134,9 @@ def read_access_token(runner=subprocess.run) -> Optional[str]:
             ["/usr/bin/security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-w"],
             capture_output=True,
             text=True,
-            timeout=10,
+            # The first read raises a keychain dialog; a short timeout would kill it
+            # while the user is still reading, and it would return every poll after.
+            timeout=120,
         )
     except (OSError, subprocess.SubprocessError):
         return None

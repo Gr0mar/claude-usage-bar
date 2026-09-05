@@ -1,3 +1,3 @@
 """Menu bar tracker for Claude Code usage: local token spend plus subscription quota."""
 
-__version__ = "1.0"
+from .identity import VERSION as __version__  # noqa: F401

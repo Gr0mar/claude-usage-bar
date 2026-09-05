@@ -3,10 +3,10 @@ import time
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from claude_usage_bar import live
-from claude_usage_bar.aggregate import UsageAggregate, day_keys, summarize
-from claude_usage_bar.parser import UsageEvent
-from claude_usage_bar.tokens import TokenCounts
+from quotabar import live
+from quotabar.aggregate import UsageAggregate, day_keys, summarize
+from quotabar.parser import UsageEvent
+from quotabar.tokens import TokenCounts
 
 MILLION_INPUT = TokenCounts(input=1_000_000)
 #: A fixed instant, so a day rolling over mid-test cannot change an assertion.

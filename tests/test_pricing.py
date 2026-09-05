@@ -1,7 +1,7 @@
 import unittest
 
-from claude_usage_bar import pricing
-from claude_usage_bar.tokens import TokenCounts
+from quotabar import pricing
+from quotabar.tokens import TokenCounts
 
 
 class PricingTests(unittest.TestCase):

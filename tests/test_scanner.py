@@ -6,8 +6,8 @@ import time
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from claude_usage_bar.aggregate import summarize
-from claude_usage_bar.scanner import LogScanner, ScanState, StateCache
+from quotabar.aggregate import summarize
+from quotabar.scanner import LogScanner, ScanState, StateCache
 
 
 def log_line(identity, tokens, timestamp="2026-09-05T10:00:00.000Z", cwd="/Users/x/code/acme-web"):

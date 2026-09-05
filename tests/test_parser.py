@@ -1,6 +1,6 @@
 import unittest
 
-from claude_usage_bar.parser import event_from_line, events_from_text
+from quotabar.parser import event_from_line, events_from_text
 
 
 def log_line(model="claude-opus-5", message_id="msg_1", request_id="req_1", usage="", cwd='"/Users/x/code/acme-web"'):

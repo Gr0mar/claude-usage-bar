@@ -1,8 +1,8 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from claude_usage_bar import formatting as fmt
-from claude_usage_bar.limits import LimitWindow, LimitsSnapshot
+from quotabar import formatting as fmt
+from quotabar.limits import LimitWindow, LimitsSnapshot
 
 
 class FormattingTests(unittest.TestCase):

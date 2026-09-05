@@ -17,6 +17,7 @@ and the UI layer marshals that to the main thread.
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 import traceback
@@ -67,6 +68,8 @@ class Snapshot:
     #: When the five-hour window will hit 100% at the rate measured so far, if it will
     #: get there before it resets.
     five_hour_eta: Optional[datetime] = None
+    #: False when ~/.claude/projects does not exist - nothing has been logged yet.
+    logs_present: bool = True
     scanning: bool = False
     updated_at: Optional[datetime] = None
     #: Set when the scan loop caught an unexpected error, so the UI can say so.
@@ -97,6 +100,7 @@ class UsageStore:
         self._fingerprint: Optional[int] = None
         self._limits: LimitsSnapshot = UNAVAILABLE
         self._five_hour = WindowTracker()
+        self._limits_source: Optional[str] = None
 
         self._stop = threading.Event()
         self._wake = threading.Event()
@@ -132,9 +136,16 @@ class UsageStore:
         self._stop.set()
         self._wake.set()
         thread, self._thread = self._thread, None
-        if thread is not None:
-            # Let an in-flight cache write finish rather than leaving a .tmp behind.
-            thread.join(timeout=2.0)
+        if thread is None:
+            self._save_if_due(force=True)
+            return
+
+        # Let an in-flight pass finish rather than leaving a .tmp behind.
+        thread.join(timeout=2.0)
+        if thread.is_alive():
+            # The worker owns the state; writing it from here would serialise a
+            # dictionary it is still mutating.
+            return
         # Quitting is the one moment worth paying the write unconditionally.
         self._save_if_due(force=True)
 
@@ -235,10 +246,15 @@ class UsageStore:
         if snapshot.has_data or not self._limits.has_data:
             self._limits = snapshot
         if snapshot.five_hour is not None:
+            # The statusline source dates its readings by file mtime, which can be
+            # hours behind the live endpoint; mixing the two would poison the slope.
+            if snapshot.source != self._limits_source:
+                self._five_hour = WindowTracker()
+                self._limits_source = snapshot.source
+            observed_at = min(snapshot.fetched_at or datetime.now(timezone.utc),
+                              datetime.now(timezone.utc))
             self._five_hour.observe(
-                snapshot.five_hour.used_percent,
-                snapshot.five_hour.resets_at,
-                snapshot.fetched_at or datetime.now(timezone.utc),
+                snapshot.five_hour.used_percent, snapshot.five_hour.resets_at, observed_at
             )
         return snapshot.has_data
 
@@ -263,6 +279,7 @@ class UsageStore:
                 five_hour.resets_at if five_hour else None,
                 now,
             ),
+            logs_present=os.path.isdir(self._scanner.root),
             scanning=self._scanning,
             updated_at=now,
             error=self._error,

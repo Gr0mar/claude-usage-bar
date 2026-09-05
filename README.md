@@ -1,6 +1,6 @@
-# Claude Usage Bar
+# QuotaBar
 
-[![tests](https://github.com/Gr0mar/claude-usage-bar/actions/workflows/tests.yml/badge.svg)](https://github.com/Gr0mar/claude-usage-bar/actions/workflows/tests.yml)
+[![tests](https://github.com/Gr0mar/quotabar/actions/workflows/tests.yml/badge.svg)](https://github.com/Gr0mar/quotabar/actions/workflows/tests.yml)
 [![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-lightgrey)
 
@@ -41,23 +41,18 @@ pay-as-you-go".
 
 ## Install
 
-```bash
-brew trust gr0mar/tap                              # third-party taps need this once
-brew install --cask gr0mar/tap/claude-usage-bar
-xattr -dr com.apple.quarantine /Applications/ClaudeUsageBar.app
-open -a ClaudeUsageBar
-```
+Download the latest zip from [Releases](https://github.com/Gr0mar/quotabar/releases),
+unzip it, drag `QuotaBar.app` into `/Applications`, then **right-click it and choose
+Open** the first time.
 
-Or grab the zip from [Releases](https://github.com/Gr0mar/claude-usage-bar/releases),
-unzip it into `/Applications`, then right-click the app and choose **Open**.
+That last step is the honest part: the app is ad-hoc signed rather than notarised, so
+Gatekeeper refuses to open it on a double-click. (`xattr -dr com.apple.quarantine
+/Applications/QuotaBar.app` does the same thing from a terminal.) Notarising needs a
+paid Apple Developer account; if this project earns one, the step disappears.
 
-That third line is the honest part: the app is **ad-hoc signed, not notarised**, so
-Gatekeeper refuses to open it silently until the quarantine flag is cleared (the
-right-click → Open dance does the same thing). Notarising needs a paid Apple Developer
-account; if this project earns one, the step disappears.
-
-The bundle carries its own copy of PyObjC and runs on the system `/usr/bin/python3` —
-1.4 MB, nothing to install, no virtualenv.
+The bundle carries its own copy of PyObjC and runs on the system `/usr/bin/python3`,
+which needs the Xcode Command Line Tools — `xcode-select --install` if you have never
+installed them. A 1.4 MB download, about 5 MB on disk.
 
 **macOS will ask once for keychain access.** That is the OAuth token read described
 below. Deny it and everything still works — the app falls back to the statusline file or
@@ -69,13 +64,13 @@ admin rights, no installer.
 ### From source
 
 ```bash
-git clone https://github.com/Gr0mar/claude-usage-bar.git
-cd claude-usage-bar
+git clone https://github.com/Gr0mar/quotabar.git
+cd quotabar
 ./scripts/setup.sh          # venv, tests, and a bundle in /Applications
 ```
 
 `setup.sh` calls `install.sh`, which puts the runtime under
-`~/Library/Application Support/ClaudeUsageBar`. That split from the checkout is
+`~/Library/Application Support/QuotaBar`. That split from the checkout is
 deliberate: an app launched from Finder cannot read `~/Desktop` or `~/Documents`, so a
 bundle pointing back at a checkout there would die on startup.
 
@@ -94,12 +89,13 @@ to compute this.
    stores in your login keychain. The token is read for that single request; it is never
    written to disk or logged, the request refuses redirects so the header cannot be
    replayed to another host, and it goes to Anthropic and nowhere else.
-2. `~/.claude/usage-bar/limits.json`, written by the bundled statusline hook. No
-   credentials at all, but it only refreshes while a Claude Code session is running.
+2. `~/.claude/usage-bar/limits.json`, written by the statusline hook that ships inside
+   the app at `QuotaBar.app/Contents/Resources/statusline-limits.sh`. No credentials at
+   all, but it only refreshes while a Claude Code session is running.
 
 If neither answers, the header falls back to a local count of the tokens billed in the
 last five hours and says so. The endpoint rate-limits, so it is polled every five
-minutes and backs off to half-hourly after a failure; a reading older than five minutes
+minutes and doubles the interval after each failure, up to half-hourly; a reading older than five minutes
 is shown with its timestamp rather than as current.
 
 ### Optional: the statusline hook
@@ -111,7 +107,7 @@ then hands the untouched input to whatever statusline command you already use:
 ```json
 "statusLine": {
   "type": "command",
-  "command": "/path/to/claude-usage-bar/scripts/statusline-limits.sh 'your existing command'"
+  "command": "/Applications/QuotaBar.app/Contents/Resources/statusline-limits.sh 'your existing command'"
 }
 ```
 
@@ -146,7 +142,7 @@ nothing to warn about.
 ## Performance
 
 The first launch parses every log once and caches the day-level rollup in
-`~/Library/Caches/com.github.gr0mar.ClaudeUsageBar`. After that each pass reads only the bytes
+`~/Library/Caches/com.github.gr0mar.QuotaBar`. After that each pass reads only the bytes
 a log has grown by, tracked per file, and a half-written trailing line is left for the
 next pass rather than dropped. Idle cost is one `stat` per log every five seconds; the
 directory tree itself is re-walked at most once a minute.
@@ -154,12 +150,12 @@ directory tree itself is re-walked at most once a minute.
 ## Uninstall
 
 ```bash
-rm -rf /Applications/ClaudeUsageBar.app
-rm -rf ~/Library/Application\ Support/ClaudeUsageBar
-rm -rf ~/Library/Caches/com.github.gr0mar.ClaudeUsageBar
-launchctl bootout gui/$(id -u)/com.github.gr0mar.ClaudeUsageBar 2>/dev/null
-rm -f ~/Library/LaunchAgents/com.github.gr0mar.ClaudeUsageBar.plist
-defaults delete com.github.gr0mar.ClaudeUsageBar 2>/dev/null
+rm -rf /Applications/QuotaBar.app
+rm -rf ~/Library/Application\ Support/QuotaBar
+rm -rf ~/Library/Caches/com.github.gr0mar.QuotaBar
+launchctl bootout gui/$(id -u)/com.github.gr0mar.QuotaBar 2>/dev/null
+rm -f ~/Library/LaunchAgents/com.github.gr0mar.QuotaBar.plist
+defaults delete com.github.gr0mar.QuotaBar 2>/dev/null
 rm -rf ~/.claude/usage-bar
 ```
 
@@ -168,19 +164,23 @@ rm -rf ~/.claude/usage-bar
 ```bash
 .venv/bin/python -m unittest discover -s tests   # no network, no display, no keychain
 .venv/bin/python scripts/preview.py /tmp 7       # renders the dropdown to PNGs
-.venv/bin/python scripts/preview.py docs 7 --demo  # the README screenshot, synthetic data
+.venv/bin/python scripts/preview.py docs 7 --demo  # a still of the same, synthetic data
 ./scripts/run.sh                                 # foreground, prints tracebacks
 .venv/bin/python scripts/make-icon.py docs/AppIcon.icns  # rebuild the app icon
 .venv/bin/python scripts/make-gif.py docs/dropdown.gif   # rebuild the README animation
-./scripts/build-release.sh 1.0.0                 # self-contained bundle + release zip
+./scripts/build-release.sh                       # self-contained bundle + release zip
 ```
 
 The app's identity - bundle id, cache directory, LaunchAgent label - lives in
-`claude_usage_bar/identity.py`, and the install script reads it from there.
+`quotabar/identity.py`, and the install script reads it from there.
 
-`claude_usage_bar/` splits into pure logic (`parser`, `pricing`, `aggregate`, `scanner`,
-`live`, `limits`, `formatting`, `store`) and the AppKit layer (`ui/`). Only `ui/` imports
-AppKit; everything else is testable without a display. The store owns one background
+Rebuilding the animation needs Pillow (`pip install -r requirements-dev.txt`); nothing
+else does, and the app itself depends only on PyObjC.
+
+`quotabar/` splits into pure logic (`parser`, `pricing`, `aggregate`, `scanner`,
+`live`, `limits`, `projection`, `alerts`, `formatting`, `tokens`, `store`, `identity`) and the
+AppKit layer (`ui/`). Only `ui/` imports AppKit; everything else is testable without a
+display. The store owns one background
 thread that publishes an immutable snapshot, and the UI reads that snapshot once per
 layout pass — so a repaint can never mix values from two different scans.
 
@@ -188,9 +188,11 @@ PRs welcome; run the tests before opening one.
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+The code is MIT — see [LICENSE](LICENSE). Fork it, ship it, sell it.
 
-Not affiliated with Anthropic. "Claude" and the Claude mark are Anthropic's; the mark
-in `claude_usage_bar/assets/claude-mark.svg` comes from
-[simple-icons](https://github.com/simple-icons/simple-icons) (CC0 icon set, trademarks
-remain their owners') and is used here to identify what the app reports on.
+The artwork is not mine to license. `quotabar/assets/claude-mark.svg` is
+Anthropic's Claude mark, taken from
+[simple-icons](https://github.com/simple-icons/simple-icons) (a CC0 icon set, but
+trademarks stay with their owners) and used here to identify what the app reports on.
+This project is not affiliated with or endorsed by Anthropic. If you fork it into
+something of your own, draw your own icon.

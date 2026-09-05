@@ -24,11 +24,16 @@ from AppKit import (  # noqa: E402
     NSBitmapImageFileTypePNG,
 )
 from Foundation import NSMakeRect  # noqa: E402
-from PIL import Image  # noqa: E402
+try:
+    from PIL import Image  # noqa: E402
+except ImportError:  # pragma: no cover - a development-only dependency
+    raise SystemExit(
+        "This script needs Pillow: .venv/bin/python -m pip install -r requirements-dev.txt"
+    )
 
-from claude_usage_bar.scanner import LogScanner, StateCache  # noqa: E402
-from claude_usage_bar.store import Snapshot, UsageStore  # noqa: E402
-from claude_usage_bar.ui.panel import UsagePanel, WIDTH  # noqa: E402
+from quotabar.scanner import LogScanner, StateCache  # noqa: E402
+from quotabar.store import Snapshot, UsageStore  # noqa: E402
+from quotabar.ui.panel import UsagePanel, WIDTH  # noqa: E402
 
 import importlib.util  # noqa: E402
 
@@ -45,7 +50,6 @@ STORYBOARD = [
     (30, 1.6, False),
     (1, 2.2, True),
 ]
-SCALE = 2
 
 
 def frame(store: UsageStore) -> Image.Image:
