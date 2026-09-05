@@ -16,14 +16,17 @@ from Foundation import NSObject
 from PyObjCTools import AppHelper
 
 from .. import formatting as fmt
+from ..alerts import QuotaAlerts
 from ..identity import BUNDLE_ID
 from ..store import UsageStore
 from . import login_item
 from .mark import menu_bar_image
+from .notifier import Notifier
 from .panel import UsagePanel
 
 METRIC_KEY = "menuBarMetric"
 COLORED_ICON_KEY = "coloredMenuBarIcon"
+NOTIFY_KEY = "notifyOnQuota"
 #: Preferences live in an explicit suite: the interpreter, not the bundle, owns the
 #: default domain, so the app would otherwise forget settings between launch methods.
 DEFAULTS_SUITE = BUNDLE_ID
@@ -54,6 +57,8 @@ class StatusItemController(NSObject):
         button.setImage_(menu_bar_image(colored=self._colored_icon()))
         button.setImagePosition_(NSImageLeft)
 
+        self._notifier = Notifier()
+        self._alerts = QuotaAlerts(enabled=self._notifications_enabled())
         self._panel = UsagePanel.alloc().initWithStore_(store)
         self._build_menu()
         self._item.setMenu_(self._menu)
@@ -92,6 +97,11 @@ class StatusItemController(NSObject):
             entry = menu.addItemWithTitle_action_keyEquivalent_(title, action, "")
             entry.setTarget_(self)
 
+        self._notify_entry = menu.addItemWithTitle_action_keyEquivalent_(
+            "Notify at 80% and 95%", "toggleNotifications:", ""
+        )
+        self._notify_entry.setTarget_(self)
+
         self._icon_entry = menu.addItemWithTitle_action_keyEquivalent_(
             "Orange icon", "toggleIconColor:", ""
         )
@@ -121,6 +131,7 @@ class StatusItemController(NSObject):
             self._metric_menu.itemAtIndex_(index).setState_(1 if key == current else 0)
         self._login_entry.setState_(1 if login_item.is_enabled() else 0)
         self._icon_entry.setState_(1 if self._colored_icon() else 0)
+        self._notify_entry.setState_(1 if self._notifications_enabled() else 0)
 
     # -- actions -----------------------------------------------------------
 
@@ -129,6 +140,12 @@ class StatusItemController(NSObject):
 
     def rescan_(self, sender) -> None:
         self._store.rescan_from_scratch()
+
+    def toggleNotifications_(self, sender) -> None:
+        enabled = not self._notifications_enabled()
+        _defaults().setBool_forKey_(enabled, NOTIFY_KEY)
+        self._alerts.enabled = enabled
+        self._sync_menu_state()
 
     def toggleIconColor_(self, sender) -> None:
         colored = not self._colored_icon()
@@ -152,6 +169,13 @@ class StatusItemController(NSObject):
     # -- label -------------------------------------------------------------
 
     @objc.python_method
+    def _notifications_enabled(self) -> bool:
+        defaults = _defaults()
+        if defaults.objectForKey_(NOTIFY_KEY) is None:
+            return True  # on by default: the point of the app is to warn you in time
+        return bool(defaults.boolForKey_(NOTIFY_KEY))
+
+    @objc.python_method
     def _colored_icon(self) -> bool:
         return bool(_defaults().boolForKey_(COLORED_ICON_KEY))
 
@@ -169,6 +193,19 @@ class StatusItemController(NSObject):
         """Called on the main thread whenever the store has new numbers."""
         self._update_label()
         self._panel.refresh()
+        self._check_quota_alert()
+
+    @objc.python_method
+    def _check_quota_alert(self) -> None:
+        snapshot = self._store.snapshot
+        window = snapshot.limits.five_hour
+        alert = self._alerts.check(
+            window.used_percent if window else None,
+            window.resets_at if window else None,
+            snapshot.five_hour_eta,
+        )
+        if alert is not None:
+            self._notifier.deliver(alert)
 
     def onStoreUpdate(self) -> None:
         """Thread-safe entry point handed to the store."""

@@ -28,6 +28,7 @@ from . import live
 from .aggregate import EMPTY_SUMMARY, Summary, summarize
 from .limits import ChainedLimitsProvider, LimitsSnapshot, UNAVAILABLE
 from .live import LiveSession
+from .projection import WindowTracker
 from .scanner import LogScanner, ScanState, StateCache
 from .tokens import ZERO, TokenCounts
 
@@ -63,6 +64,9 @@ class Snapshot:
     burn_rate: float = 0.0
     local_five_hour: TokenCounts = ZERO
     range_days: int = 1
+    #: When the five-hour window will hit 100% at the rate measured so far, if it will
+    #: get there before it resets.
+    five_hour_eta: Optional[datetime] = None
     scanning: bool = False
     updated_at: Optional[datetime] = None
     #: Set when the scan loop caught an unexpected error, so the UI can say so.
@@ -92,6 +96,7 @@ class UsageStore:
         self._state: ScanState = self._cache.load() or ScanState()
         self._fingerprint: Optional[int] = None
         self._limits: LimitsSnapshot = UNAVAILABLE
+        self._five_hour = WindowTracker()
 
         self._stop = threading.Event()
         self._wake = threading.Event()
@@ -229,6 +234,12 @@ class UsageStore:
         # Keep the last good reading rather than blanking the header on one failed poll.
         if snapshot.has_data or not self._limits.has_data:
             self._limits = snapshot
+        if snapshot.five_hour is not None:
+            self._five_hour.observe(
+                snapshot.five_hour.used_percent,
+                snapshot.five_hour.resets_at,
+                snapshot.fetched_at or datetime.now(timezone.utc),
+            )
         return snapshot.has_data
 
     def _publish(self) -> None:
@@ -237,6 +248,7 @@ class UsageStore:
         aggregate = self._state.aggregate
         recent = self._state.recent
 
+        five_hour = self._limits.five_hour
         self.snapshot = Snapshot(
             summary=summarize(aggregate, self._range_days, now),
             today_cost=summarize(aggregate, 1, now).cost,
@@ -246,6 +258,11 @@ class UsageStore:
             burn_rate=live.burn_rate(recent, now=now),
             local_five_hour=live.tokens_in_window(recent, timedelta(hours=5), now),
             range_days=self._range_days,
+            five_hour_eta=self._five_hour.exhausted_at(
+                five_hour.used_percent if five_hour else None,
+                five_hour.resets_at if five_hour else None,
+                now,
+            ),
             scanning=self._scanning,
             updated_at=now,
             error=self._error,

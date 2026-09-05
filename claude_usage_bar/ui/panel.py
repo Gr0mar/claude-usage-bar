@@ -183,7 +183,8 @@ class UsagePanel(NSView):
 
         limits = snapshot.limits
         if limits.has_data:
-            y = self._limit_bar(y, draw, "Session (5h)", limits.five_hour)
+            y = self._limit_bar(y, draw, "Session (5h)", limits.five_hour,
+                                exhausted_at=snapshot.five_hour_eta)
             y = self._limit_bar(y, draw, "Weekly", limits.seven_day)
             return y
 
@@ -211,7 +212,7 @@ class UsagePanel(NSView):
         return "local"
 
     @objc.python_method
-    def _limit_bar(self, y: float, draw: bool, title: str, window) -> float:
+    def _limit_bar(self, y: float, draw: bool, title: str, window, exhausted_at=None) -> float:
         self._text(title, PADDING, y, LABEL, NSFontWeightMedium, NSColor.labelColor(), draw)
         if window is None:
             self._text("n/a", PADDING, y, LABEL, NSFontWeightRegular,
@@ -236,6 +237,11 @@ class UsagePanel(NSView):
         if countdown:
             self._text(countdown, PADDING, y, CAPTION, NSFontWeightRegular,
                        NSColor.tertiaryLabelColor(), draw)
+        if exhausted_at is not None:
+            # Only shown when the measured burn rate would empty the window first.
+            self._text("full around " + fmt.time_of_day(exhausted_at), PADDING, y, CAPTION,
+                       NSFontWeightRegular, tint, draw, align_right=True)
+        if countdown or exhausted_at is not None:
             y += 14
         return y + 2
 

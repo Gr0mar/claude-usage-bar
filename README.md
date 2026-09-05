@@ -15,11 +15,14 @@ and what your usage would cost at API list prices. Click the spark for the full 
 
 | Section | What it answers |
 |---|---|
-| Session (5h) / Weekly | How much of the subscription quota is used, and when it resets |
+| Session (5h) / Weekly | How much of the subscription quota is used, when it resets, and - once the burn rate is measurable - when it will run out |
 | Running now | The session writing to a log right now: project, model, cost, burn rate per hour |
 | Today / 7 days / 30 days | Cost and tokens for the window, with a 14-day daily-cost sparkline |
 | Top projects | Which repos the spend went to |
 | Models | Opus / Sonnet / Haiku split, and what prompt caching saved |
+
+It also notifies you once the session window passes 80% and again at 95%, so the cap
+does not arrive mid-thought. Turn that off in the menu.
 
 The menu bar label shows the 5h quota by default; the menu switches it to the weekly
 quota, today's cost, or the icon alone, and toggles the icon between monochrome and
@@ -107,6 +110,14 @@ so a response routinely straddles two scans. The scanner therefore remembers eve
 id it has already counted; without that, roughly a third of all responses would be
 counted twice. The same set makes re-reading a file idempotent, so a `/rewind`, a
 rotation, or a full rescan cannot inflate the totals.
+
+## Projecting the cap
+
+The API reports how much of a window is used, not how fast. The app measures the slope
+itself - successive readings of the same window give percent-per-hour - and turns that
+into an arrival time at 100%. It only shows one when the readings span at least eight
+minutes, the window is actually moving, and the burn rate would empty it *before* the
+window resets; otherwise there is nothing to warn about and the line stays hidden.
 
 ## Performance
 
