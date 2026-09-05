@@ -1,0 +1,2 @@
+# The app needs AppKit bindings; the test suite is pure standard library.
+pyobjc-framework-Cocoa>=10,<12
