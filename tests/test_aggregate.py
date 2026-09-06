@@ -69,7 +69,7 @@ class SummaryTests(unittest.TestCase):
         aggregate.add(sample(tokens=TokenCounts(cache_read=1_000_000)))
         aggregate.add(sample(model="claude-haiku-4-5", tokens=TokenCounts(cache_read=1_000_000)))
 
-        self.assertAlmostEqual(summarize(aggregate, 1).cache_savings, 4.5 + 0.9, places=3)
+        self.assertAlmostEqual(summarize(aggregate, 1, NOW).cache_savings, 4.5 + 0.9, places=3)
 
     def test_aggregate_survives_a_dict_round_trip(self):
         aggregate = UsageAggregate()
