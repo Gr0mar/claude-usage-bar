@@ -7,9 +7,15 @@
 A macOS menu bar tracker for Claude Code: how much of your subscription window is left,
 and what your usage would cost at API list prices. Click the spark for the full report.
 
+<img src="docs/menubar.png" alt="the menu bar item" width="66">
+
+That sits in the menu bar all day: the share of the 5h session window you have spent,
+without opening anything. Click it for the rest.
+
 ![the dropdown](docs/dropdown.gif)
 
-*(Rendered from synthetic data — `scripts/make-gif.py`. No real project names or spend.)*
+*(Rendered from synthetic data — `scripts/make-menubar.py` and `scripts/make-gif.py`.
+No real project names or spend.)*
 
 ## What it shows
 
@@ -170,6 +176,7 @@ rm -rf ~/.claude/usage-bar
 ./scripts/run.sh                                 # foreground, prints tracebacks
 .venv/bin/python scripts/make-icon.py docs/AppIcon.icns  # rebuild the app icon
 .venv/bin/python scripts/make-gif.py docs/dropdown.gif   # rebuild the README animation
+.venv/bin/python scripts/make-menubar.py docs/menubar.png  # rebuild the menu bar strip
 ./scripts/build-release.sh                       # self-contained bundle + release zip
 ```
 
