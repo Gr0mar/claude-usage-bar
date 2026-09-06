@@ -33,9 +33,11 @@ does not arrive mid-thought. Turn that off in the menu. Those notifications go o
 through `osascript`, so macOS attributes them to Script Editor — allow its
 notifications in System Settings if they never appear.
 
-The menu bar label shows the 5h quota by default; the menu switches it to the weekly
-quota, today's cost, or the icon alone, and toggles the icon between monochrome and
-Claude's coral.
+<img src="docs/menu.png" alt="the menu: what the menu bar shows, refresh, notifications, launch at login" width="330">
+
+The label shows the 5h quota by default; the menu switches it to the weekly quota,
+today's cost, or the icon alone, turns the notifications off, colours the icon orange
+instead of letting macOS tint it, and adds the app to your login items.
 
 Every dollar figure is the **API list price** of the tokens used, not a bill: on a
 subscription you pay a flat fee, so read it as "what this usage would cost
@@ -187,6 +189,7 @@ rm -rf ~/.claude/usage-bar
 .venv/bin/python scripts/make-icon.py docs/AppIcon.icns  # rebuild the app icon
 .venv/bin/python scripts/make-gif.py docs/dropdown.gif   # rebuild the README animation
 .venv/bin/python scripts/make-menubar.py docs/menubar.png  # rebuild the menu bar strip
+.venv/bin/python scripts/make-menu.py docs/menu.png      # rebuild the picture of the menu
 ./scripts/build-release.sh                       # self-contained bundle + release zip
 ```
 

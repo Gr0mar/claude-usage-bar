@@ -43,6 +43,18 @@ METRICS = [
     ("icon", "Icon only"),
 ]
 
+#: The rest of the menu, as text: the README's picture of it is drawn from these, so a
+#: renamed item cannot leave a stale screenshot behind.
+METRIC_MENU_TITLE = "Menu bar shows"
+ACTIONS = [
+    ("Refresh now", "refresh:"),
+    ("Rescan all logs", "rescan:"),
+]
+NOTIFY_TITLE = "Notify at 80% and 95%"
+COLORED_ICON_TITLE = "Orange icon"
+LOGIN_TITLE = "Launch at login"
+QUIT_TITLE = "Quit"
+
 
 _defaults_cache = None
 
@@ -102,7 +114,7 @@ class StatusItemController(NSObject):
         menu.addItem_(NSMenuItem.separatorItem())
 
         metric_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "Menu bar shows", None, ""
+            METRIC_MENU_TITLE, None, ""
         )
         self._metric_menu = NSMenu.alloc().init()
         for key, title in METRICS:
@@ -114,30 +126,27 @@ class StatusItemController(NSObject):
         metric_item.setSubmenu_(self._metric_menu)
         menu.addItem_(metric_item)
 
-        for title, action in (
-            ("Refresh now", "refresh:"),
-            ("Rescan all logs", "rescan:"),
-        ):
+        for title, action in ACTIONS:
             entry = menu.addItemWithTitle_action_keyEquivalent_(title, action, "")
             entry.setTarget_(self)
 
         self._notify_entry = menu.addItemWithTitle_action_keyEquivalent_(
-            "Notify at 80% and 95%", "toggleNotifications:", ""
+            NOTIFY_TITLE, "toggleNotifications:", ""
         )
         self._notify_entry.setTarget_(self)
 
         self._icon_entry = menu.addItemWithTitle_action_keyEquivalent_(
-            "Orange icon", "toggleIconColor:", ""
+            COLORED_ICON_TITLE, "toggleIconColor:", ""
         )
         self._icon_entry.setTarget_(self)
 
         self._login_entry = menu.addItemWithTitle_action_keyEquivalent_(
-            "Launch at login", "toggleLogin:", ""
+            LOGIN_TITLE, "toggleLogin:", ""
         )
         self._login_entry.setTarget_(self)
 
         menu.addItem_(NSMenuItem.separatorItem())
-        quit_entry = menu.addItemWithTitle_action_keyEquivalent_("Quit", "quit:", "q")
+        quit_entry = menu.addItemWithTitle_action_keyEquivalent_(QUIT_TITLE, "quit:", "q")
         quit_entry.setTarget_(self)
 
         self._menu = menu

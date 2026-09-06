@@ -101,12 +101,15 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(self.input_tokens(state), 1_000_000)
 
     def test_appends_after_multibyte_characters_read_from_the_right_offset(self):
-        self.write(log_line("1", 1_000, cwd="/Users/x/Desktop/čeština-日本"))
+        # Stamped now: an event older than the recent window is trimmed, and the
+        # assertion below reads that list.
+        fresh = datetime.now(timezone.utc).isoformat()
+        self.write(log_line("1", 1_000, fresh, cwd="/Users/x/Desktop/čeština-日本"))
         state = ScanState()
         self.scanner.scan(state)
         self.assertEqual(state.recent[0].project, "čeština-日本")
 
-        self.write(log_line("2", 2_000), mode="a")
+        self.write(log_line("2", 2_000, fresh), mode="a")
         self.scanner.scan(state)
         self.assertEqual(self.input_tokens(state), 3_000)
 
