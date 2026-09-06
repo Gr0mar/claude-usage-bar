@@ -112,15 +112,20 @@ def draw_mark_in_box(x: float, y: float, side: float, color: NSColor,
     draw_mark(x + side / 2, y + side / 2, side / 2, color, fill)
 
 
-def menu_bar_image(side: float = MARK_SIDE, colored: bool = False) -> NSImage:
+def menu_bar_image(side: float = MARK_SIDE, colored: bool = False,
+                   fill: float = DEFAULT_FILL) -> NSImage:
     """The menu bar icon: a template image by default, so macOS tints it.
+
+    `fill` is how much of the quota is spent, 0-1, so the dial in the menu bar reads the
+    same as the percentage beside it.
 
     Drawn through a handler rather than into a fixed bitmap, so AppKit rasterises it at
     the display's scale - on a Retina screen the arc is as crisp as the one the dropdown
     draws, instead of a 15-point bitmap stretched to double size.
     """
     def render(rect) -> bool:
-        draw_mark_in_box(0, 0, side, brand_color() if colored else NSColor.blackColor())
+        draw_mark_in_box(0, 0, side, brand_color() if colored else NSColor.blackColor(),
+                         fill)
         return True
 
     image = NSImage.imageWithSize_flipped_drawingHandler_(

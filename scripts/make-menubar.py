@@ -53,9 +53,13 @@ INSET = 8.0
 GAP = 4.0
 
 
+#: The quota the strip shows, shared by the dial and the label beside it.
+LIMITS = preview.DemoLimits().fetch()
+
+
 def _label() -> NSAttributedString:
     return NSAttributedString.alloc().initWithString_attributes_(
-        fmt.menu_bar_label("five_hour", preview.DemoLimits().fetch(), 0.0),
+        fmt.menu_bar_label("five_hour", LIMITS, 0.0),
         {
             NSFontAttributeName: NSFont.menuBarFontOfSize_(0),
             NSForegroundColorAttributeName: NSColor.whiteColor(),
@@ -83,8 +87,10 @@ def render() -> NSBitmapImageRep:
         NSColor.colorWithSRGBRed_green_blue_alpha_(*BOTTOM, 1.0),
     ).drawInRect_angle_(bar, -90.0)
 
-    # The menu bar tints template images white on a dark desktop.
-    draw_mark_in_box(INSET, (HEIGHT - MARK_SIDE) / 2, MARK_SIDE, NSColor.whiteColor())
+    # The menu bar tints template images white on a dark desktop, and the dial stands
+    # at the same reading as the percentage beside it.
+    draw_mark_in_box(INSET, (HEIGHT - MARK_SIDE) / 2, MARK_SIDE, NSColor.whiteColor(),
+                     fmt.gauge_fill("five_hour", LIMITS))
 
     label.drawAtPoint_(NSMakePoint(INSET + MARK_SIDE + GAP,
                                    (HEIGHT - label.size().height) / 2))

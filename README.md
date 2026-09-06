@@ -9,8 +9,9 @@ and what your usage would cost at API list prices. Click the spark for the full 
 
 <img src="docs/menubar.png" alt="the menu bar item" width="66">
 
-That sits in the menu bar all day: the share of the 5h session window you have spent,
-without opening anything. Click it for the rest.
+That sits in the menu bar all day: the share of the 5h session window you have spent -
+the dial fills as the quota goes, so the shape alone tells you where you stand. Click it
+for the rest.
 
 ![the dropdown](docs/dropdown.gif)
 

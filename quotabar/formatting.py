@@ -75,6 +75,19 @@ def menu_bar_label(metric: str, limits, today_cost: float) -> str:
     return money(today_cost)
 
 
+def gauge_fill(metric: str, limits) -> Optional[float]:
+    """How full the menu bar dial should be, 0-1, or None when nothing is known.
+
+    The dial always reads a quota window, even while the label shows a cost: a gauge
+    that filled with dollars would have no full mark to fill towards. The weekly metric
+    is the one exception - it is what the user asked to watch.
+    """
+    window = limits.seven_day if metric == "seven_day" else limits.five_hour
+    if window is None:
+        return None
+    return window.used_percent / 100.0
+
+
 def clock_is_12_hour() -> Optional[bool]:
     """Whether macOS writes times as 10:47 AM rather than 10:47, or None off macOS.
 

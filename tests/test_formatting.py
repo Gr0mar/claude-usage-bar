@@ -32,6 +32,24 @@ class FormattingTests(unittest.TestCase):
         self.assertEqual(fmt.elapsed(timedelta(hours=1, minutes=5)), "1h 5m")
 
 
+class GaugeFillTests(unittest.TestCase):
+    QUOTA = LimitsSnapshot(five_hour=LimitWindow(85.0), seven_day=LimitWindow(20.0))
+
+    def test_the_dial_reads_the_five_hour_window(self):
+        self.assertAlmostEqual(fmt.gauge_fill("five_hour", self.QUOTA), 0.85)
+
+    def test_the_weekly_metric_moves_the_dial_to_the_weekly_window(self):
+        self.assertAlmostEqual(fmt.gauge_fill("seven_day", self.QUOTA), 0.20)
+
+    def test_a_cost_label_still_leaves_the_dial_on_the_session_quota(self):
+        # A dial full of dollars has no full mark to fill towards.
+        for metric in ("today", "icon"):
+            self.assertAlmostEqual(fmt.gauge_fill(metric, self.QUOTA), 0.85)
+
+    def test_no_reading_is_not_an_empty_dial(self):
+        self.assertIsNone(fmt.gauge_fill("five_hour", LimitsSnapshot()))
+
+
 class TimeOfDayTests(unittest.TestCase):
     #: Local time, so the formatter's conversion is a no-op and only the clock is tested.
     MORNING = datetime(2026, 9, 6, 8, 5, tzinfo=timezone.utc).astimezone()

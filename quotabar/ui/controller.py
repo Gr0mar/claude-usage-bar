@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from AppKit import (
     NSApplication,
@@ -25,7 +26,7 @@ from ..alerts import QuotaAlerts
 from ..identity import BUNDLE_ID
 from ..store import UsageStore
 from . import login_item
-from .mark import menu_bar_image
+from .mark import DEFAULT_FILL, menu_bar_image
 from .notifier import Notifier
 from .panel import UsagePanel
 
@@ -75,8 +76,10 @@ class StatusItemController(NSObject):
             NSVariableStatusItemLength
         )
         button = self._item.button()
-        button.setImage_(menu_bar_image(colored=self._colored_icon()))
         button.setImagePosition_(NSImageLeft)
+        #: The fill the icon was last drawn with, so a tick that moves nothing does not
+        #: redraw it.
+        self._icon_fill = None
 
         self._notifier = Notifier()
         self._alerts = QuotaAlerts(enabled=self._notifications_enabled())
@@ -171,7 +174,7 @@ class StatusItemController(NSObject):
     def toggleIconColor_(self, sender) -> None:
         colored = not self._colored_icon()
         _defaults().setBool_forKey_(colored, COLORED_ICON_KEY)
-        self._item.button().setImage_(menu_bar_image(colored=colored))
+        self._update_icon(self._icon_fill, force=True)
         self._sync_menu_state()
 
     def toggleLogin_(self, sender) -> None:
@@ -207,8 +210,27 @@ class StatusItemController(NSObject):
     @objc.python_method
     def _update_label(self) -> None:
         snapshot = self._store.snapshot
-        text = fmt.menu_bar_label(self._metric(), snapshot.limits, snapshot.today_cost)
+        metric = self._metric()
+        text = fmt.menu_bar_label(metric, snapshot.limits, snapshot.today_cost)
         self._item.button().setTitle_(" " + text if text else "")
+        self._update_icon(fmt.gauge_fill(metric, snapshot.limits))
+
+    @objc.python_method
+    def _update_icon(self, fill: Optional[float], force: bool = False) -> None:
+        """Redraws the dial when the quota has moved a visible amount.
+
+        Rounded to whole percent: the store republishes every few seconds and a
+        redraw that no eye can see is still a redraw of the menu bar.
+        """
+        # No reading yet - an empty dial would claim the quota is untouched, so the mark
+        # stays at its resting fill until the endpoint answers.
+        drawn = DEFAULT_FILL if fill is None else round(min(max(fill, 0.0), 1.0), 2)
+        if not force and drawn == self._icon_fill:
+            return
+        self._icon_fill = drawn
+        self._item.button().setImage_(
+            menu_bar_image(colored=self._colored_icon(), fill=drawn)
+        )
 
     def storeUpdated(self) -> None:
         """Called on the main thread whenever the store has new numbers.
