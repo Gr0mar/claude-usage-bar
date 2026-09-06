@@ -51,13 +51,22 @@ pay-as-you-go".
 ## Install
 
 Download the latest zip from [Releases](https://github.com/Gr0mar/quotabar/releases),
-unzip it, drag `QuotaBar.app` into `/Applications`, then **right-click it and choose
-Open** the first time.
+unzip it, drag `QuotaBar.app` into `/Applications`. The first launch takes one extra
+step, or the app never opens:
 
-That last step is the honest part: the app is ad-hoc signed rather than notarised, so
-Gatekeeper refuses to open it on a double-click. (`xattr -dr com.apple.quarantine
-/Applications/QuotaBar.app` does the same thing from a terminal.) Notarising needs a
-paid Apple Developer account; if this project earns one, the step disappears.
+```bash
+xattr -dr com.apple.quarantine /Applications/QuotaBar.app
+```
+
+Without it macOS 15 and later answer the first double-click with *"QuotaBar" Not
+Opened — Apple could not verify…* and offer to move the app to the bin. **Click Done,
+not Move to Bin**, then either run the command above, or go to **System Settings →
+Privacy & Security**, scroll to *Security*, press **Open Anyway** beside QuotaBar and
+confirm. Right-clicking and choosing Open no longer works: Apple removed that bypass in
+Sequoia.
+
+This is the honest part: the app is ad-hoc signed rather than notarised, and notarising
+needs a paid Apple Developer account. If this project earns one, the step disappears.
 
 The bundle carries its own copy of PyObjC and runs on the system `/usr/bin/python3`,
 which needs the Xcode Command Line Tools — `xcode-select --install` if you have never
