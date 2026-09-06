@@ -2,9 +2,10 @@
 
     .venv/bin/python scripts/make-menubar.py docs/menubar.png
 
-The quota reading is the same synthetic one the dropdown animation uses, so the two
-images in the README agree with each other and neither shows a real account. Drawn at
-2x and stored that way, so it stays sharp on a Retina screen; the README scales it down.
+The same item at three points of a session, so the README shows the dial filling as the
+quota goes. The numbers are synthetic, like the dropdown animation's - neither image
+shows a real account. Drawn at 2x and stored that way, so it stays sharp on a Retina
+screen; the README scales it down.
 """
 
 from __future__ import annotations
@@ -28,15 +29,8 @@ from AppKit import (  # noqa: E402
 from Foundation import NSAttributedString, NSMakePoint, NSMakeRect  # noqa: E402
 
 from quotabar import formatting as fmt  # noqa: E402
+from quotabar.limits import LimitWindow, LimitsSnapshot, SOURCE_API  # noqa: E402
 from quotabar.ui.mark import MARK_SIDE, draw_mark_in_box  # noqa: E402
-
-import importlib.util  # noqa: E402
-
-_spec = importlib.util.spec_from_file_location(
-    "preview", os.path.join(os.path.dirname(os.path.abspath(__file__)), "preview.py")
-)
-preview = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(preview)
 
 #: The strip's height in points, and the scale it is drawn at; the width follows the
 #: label, so the image is the item and not a stretch of empty bar.
@@ -51,15 +45,22 @@ BOTTOM = (0.10, 0.11, 0.13)
 #: The system draws menu bar items with this much air around them.
 INSET = 8.0
 GAP = 4.0
+#: Air between the three readings, so they read as one item at three moments of a
+#: session rather than as three items in one menu bar.
+SPACING = 14.0
+
+#: Early, halfway, nearly out - one item drawn at three points of the same session, so
+#: the README shows that the dial moves with the quota instead of decorating the label.
+READINGS = (7.0, 37.0, 85.0)
 
 
-#: The quota the strip shows, shared by the dial and the label beside it.
-LIMITS = preview.DemoLimits().fetch()
+def _quota(used_percent: float) -> LimitsSnapshot:
+    return LimitsSnapshot(five_hour=LimitWindow(used_percent), source=SOURCE_API)
 
 
-def _label() -> NSAttributedString:
+def _label(limits: LimitsSnapshot) -> NSAttributedString:
     return NSAttributedString.alloc().initWithString_attributes_(
-        fmt.menu_bar_label("five_hour", LIMITS, 0.0),
+        fmt.menu_bar_label("five_hour", limits, 0.0),
         {
             NSFontAttributeName: NSFont.menuBarFontOfSize_(0),
             NSForegroundColorAttributeName: NSColor.whiteColor(),
@@ -67,33 +68,44 @@ def _label() -> NSAttributedString:
     )
 
 
-def render() -> NSBitmapImageRep:
-    label = _label()
+def _draw_item(x: float, limits: LimitsSnapshot) -> float:
+    """Paints one menu bar item at `x` and returns the width it took."""
+    label = _label(limits)
     width = INSET * 2 + MARK_SIDE + GAP + label.size().width
 
+    NSGradient.alloc().initWithStartingColor_endingColor_(
+        NSColor.colorWithSRGBRed_green_blue_alpha_(*TOP, 1.0),
+        NSColor.colorWithSRGBRed_green_blue_alpha_(*BOTTOM, 1.0),
+    ).drawInRect_angle_(NSMakeRect(x, 0, width, HEIGHT), -90.0)
+
+    # The menu bar tints template images white on a dark desktop, and the dial stands
+    # at the same reading as the percentage beside it.
+    draw_mark_in_box(x + INSET, (HEIGHT - MARK_SIDE) / 2, MARK_SIDE, NSColor.whiteColor(),
+                     fmt.gauge_fill("five_hour", limits))
+
+    label.drawAtPoint_(NSMakePoint(x + INSET + MARK_SIDE + GAP,
+                                   (HEIGHT - label.size().height) / 2))
+    return width
+
+
+def render() -> NSBitmapImageRep:
+    quotas = [_quota(used) for used in READINGS]
+    widths = [INSET * 2 + MARK_SIDE + GAP + _label(limits).size().width for limits in quotas]
+    total = sum(widths) + SPACING * (len(widths) - 1)
+
     rep = NSBitmapImageRep.alloc().initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel_(
-        None, int(round(width * SCALE)), int(HEIGHT * SCALE), 8, 4, True, False,
+        None, int(round(total * SCALE)), int(HEIGHT * SCALE), 8, 4, True, False,
         "NSCalibratedRGBColorSpace", 0, 0
     )
-    rep.setSize_((width, HEIGHT))
+    rep.setSize_((total, HEIGHT))
 
     context = NSGraphicsContext.graphicsContextWithBitmapImageRep_(rep)
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.setCurrentContext_(context)
 
-    bar = NSMakeRect(0, 0, width, HEIGHT)
-    NSGradient.alloc().initWithStartingColor_endingColor_(
-        NSColor.colorWithSRGBRed_green_blue_alpha_(*TOP, 1.0),
-        NSColor.colorWithSRGBRed_green_blue_alpha_(*BOTTOM, 1.0),
-    ).drawInRect_angle_(bar, -90.0)
-
-    # The menu bar tints template images white on a dark desktop, and the dial stands
-    # at the same reading as the percentage beside it.
-    draw_mark_in_box(INSET, (HEIGHT - MARK_SIDE) / 2, MARK_SIDE, NSColor.whiteColor(),
-                     fmt.gauge_fill("five_hour", LIMITS))
-
-    label.drawAtPoint_(NSMakePoint(INSET + MARK_SIDE + GAP,
-                                   (HEIGHT - label.size().height) / 2))
+    x = 0.0
+    for limits in quotas:
+        x += _draw_item(x, limits) + SPACING
 
     NSGraphicsContext.restoreGraphicsState()
     return rep

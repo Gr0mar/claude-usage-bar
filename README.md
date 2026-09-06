@@ -7,11 +7,11 @@
 A macOS menu bar tracker for Claude Code: how much of your subscription window is left,
 and what your usage would cost at API list prices. Click the spark for the full report.
 
-<img src="docs/menubar.png" alt="the menu bar item" width="66">
+<img src="docs/menubar.png" alt="the menu bar item early, halfway and nearly out of quota" width="330">
 
-That sits in the menu bar all day: the share of the 5h session window you have spent -
-the dial fills as the quota goes, so the shape alone tells you where you stand. Click it
-for the rest.
+One item, three points of the same session: it sits in the menu bar all day showing the
+share of the 5h window you have spent, and the dial fills as the quota goes - so the
+shape alone tells you where you stand. Click it for the rest.
 
 ![the dropdown](docs/dropdown.gif)
 
