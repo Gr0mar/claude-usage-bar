@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 
-VERSION = "1.1.1"
+VERSION = "1.2.0"
 BUNDLE_ID = "com.github.gr0mar.QuotaBar"
 APP_NAME = "QuotaBar"
 DISPLAY_NAME = "QuotaBar"
