@@ -32,6 +32,33 @@ class FormattingTests(unittest.TestCase):
         self.assertEqual(fmt.elapsed(timedelta(hours=1, minutes=5)), "1h 5m")
 
 
+class TimeOfDayTests(unittest.TestCase):
+    #: Local time, so the formatter's conversion is a no-op and only the clock is tested.
+    MORNING = datetime(2026, 9, 6, 8, 5, tzinfo=timezone.utc).astimezone()
+    AFTERNOON = datetime(2026, 9, 6, 22, 47, tzinfo=timezone.utc).astimezone()
+
+    def test_a_24_hour_clock_pads_the_hour_and_says_nothing_else(self):
+        self.assertEqual(fmt.time_of_day(self.MORNING, hour12=False),
+                         self.MORNING.strftime("%H:%M"))
+
+    def test_a_12_hour_clock_drops_the_leading_zero_and_names_the_half(self):
+        for moment in (self.MORNING, self.AFTERNOON):
+            written = fmt.time_of_day(moment, hour12=True)
+            self.assertTrue(written.endswith(" AM") or written.endswith(" PM"), written)
+            self.assertEqual(written.split(":")[0], str(moment.hour % 12 or 12))
+
+    def test_midnight_and_noon_are_12_not_0(self):
+        midnight = self.MORNING.replace(hour=0, minute=30)
+        noon = self.MORNING.replace(hour=12, minute=30)
+        self.assertEqual(fmt.time_of_day(midnight, hour12=True), "12:30 AM")
+        self.assertEqual(fmt.time_of_day(noon, hour12=True), "12:30 PM")
+
+    def test_without_macos_to_ask_the_clock_is_24_hour(self):
+        # The suite runs on a plain interpreter, so nothing can answer.
+        self.assertIsNone(fmt.clock_is_12_hour())
+        self.assertEqual(fmt.time_of_day(self.MORNING), self.MORNING.strftime("%H:%M"))
+
+
 class MenuBarLabelTests(unittest.TestCase):
     QUOTA = LimitsSnapshot(LimitWindow(21.0), LimitWindow(4.0))
     NO_QUOTA = LimitsSnapshot()
